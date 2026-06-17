@@ -1614,23 +1614,20 @@ $('closeProfileBtn').addEventListener('click',()=>closeModal('empProfileModal'))
 
 // INIT
 document.addEventListener('DOMContentLoaded',()=>{
+  // Set CU BEFORE startListeners so onSnapshot finds it
+  if(_businessId){
+    const savedEmp=localStorage.getItem('mishmarot_emp');
+    if(savedEmp){
+      try{const emp=JSON.parse(savedEmp);CU={type:'employee',emp};}catch(e){}
+    } else {
+      CU={type:'manager'};
+    }
+  }
+
   loadAdminSettings().then(()=>loadCustomRoles()).then(()=>{
     startListeners();
-    // Auto-login if came from login.html
-    if(_businessId&&!CU){
-      const savedEmp=localStorage.getItem('mishmarot_emp');
-      if(savedEmp){
-        // Employee login
-        const emp=JSON.parse(savedEmp);
-        CU={type:'employee',emp};
-        enterApp(emp.name);
-
-      } else {
-        // Manager login
-        CU={type:'manager'};
-        enterApp(_businessData.name||'מנהל');
-      }
-    }
+    if(CU?.type==='employee') enterApp(CU.emp.name);
+    else if(CU?.type==='manager') enterApp(_businessData.name||'מנהל');
   });
   const _savedCu=localStorage.getItem('cu');
   setTimeout(()=>{
