@@ -1614,6 +1614,8 @@ document.addEventListener('DOMContentLoaded',()=>{
         const emp=JSON.parse(savedEmp);
         CU={type:'employee',emp};
         enterApp(emp.name);
+        // Re-render after data loads
+        setTimeout(()=>{if(CU?.type==='employee')renderMyShifts();},1500);
       } else {
         // Manager login
         CU={type:'manager'};
