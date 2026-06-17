@@ -60,9 +60,22 @@ const auth=getAuth(app);
 const db=getFirestore(app);
 const $=id=>document.getElementById(id);
 
+// Check admin password
+const ADMIN_PASS='200475';
+const savedAdmin=localStorage.getItem('mishmarot_admin');
+if(!savedAdmin){
+  const pass=prompt('סיסמת מנהל מערכת:');
+  if(pass!==ADMIN_PASS){
+    alert('סיסמה שגויה!');
+    window.location.href='login.html';
+  } else {
+    localStorage.setItem('mishmarot_admin','1');
+  }
+}
+
 let _businesses=[];
 
-// Load businesses
+// Load businesses - use admin SDK workaround with test mode rules
 onSnapshot(collection(db,'businesses'),snap=>{
   _businesses=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   renderStats();
