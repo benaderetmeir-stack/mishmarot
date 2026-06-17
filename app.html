@@ -635,7 +635,13 @@ function enterApp(name){
   $('mgrNav').style.display=CU.type==='manager'?'block':'none';
   $('empNav').style.display=CU.type==='employee'?'':'none';
   if(CU.type==='manager'){showPanel('dashboard');renderDashboard();populateRepEmpSelect();}
-  else{showPanel('myshifts');renderMyShifts();}
+  else{
+    showPanel('myshifts');
+    renderMyShifts();
+    // Retry after data loads from Firebase
+    setTimeout(()=>{if(CU?.type==='employee')renderMyShifts();},1000);
+    setTimeout(()=>{if(CU?.type==='employee')renderMyShifts();},3000);
+  }
   const today=new Date(),sun=new Date(today);sun.setDate(today.getDate()-today.getDay());
   const iso=sun.toISOString().slice(0,10);
   ['weekStart','approveWeekStart'].forEach(id=>{const el=$(id);if(el)el.value=iso;});
@@ -1157,7 +1163,11 @@ function renderMyShifts(){
   const emp=CU.emp;
   const today=new Date().toISOString().slice(0,10);
   const shifts=_shifts.filter(s=>(s.needs?.[emp.role]||0)>0||Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))).sort((a,b)=>a.date.localeCompare(b.date));
-  if(!shifts.length){$('myShiftsList').innerHTML='<div style="text-align:center;padding:40px;color:var(--text2)"><span style="font-size:40px;display:block;margin-bottom:10px">📅</span><p>אין משמרות רלוונטיות</p></div>';return;}
+  if(!shifts.length){
+    // Debug info
+    console.log('_shifts count:', _shifts.length, 'emp role:', emp?.role, 'emp id:', emp?.id);
+    $('myShiftsList').innerHTML='<div style="text-align:center;padding:40px;color:var(--text2)"><span style="font-size:40px;display:block;margin-bottom:10px">📅</span><p>אין משמרות רלוונטיות</p><p style="font-size:11px;margin-top:8px">תפקיד: '+(emp?.role||'לא ידוע')+'</p></div>';return;
+  }
   if(!_av[emp.id])_av[emp.id]={};
   $('myShiftsList').innerHTML=shifts.map(s=>{
     const val=_av[emp.id][s.id]||'none';
@@ -1614,8 +1624,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         const emp=JSON.parse(savedEmp);
         CU={type:'employee',emp};
         enterApp(emp.name);
-        // Re-render after data loads
-        setTimeout(()=>{if(CU?.type==='employee')renderMyShifts();},1500);
+
       } else {
         // Manager login
         CU={type:'manager'};
