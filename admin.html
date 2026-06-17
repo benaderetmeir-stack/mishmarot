@@ -160,6 +160,7 @@ function renderBusinesses(){
       ${!b.archived?`<button class="btn-sm ${b.active!==false?'btn-red':'btn-green'} toggle-btn" data-id="${b.id}" data-active="${b.active!==false}">${b.active!==false?'השבת':'הפעל'}</button>`:''}
       ${!b.archived?`<button class="btn-sm btn-gray archive-btn" data-id="${b.id}">📦 ארכיון</button>`:''}
       ${b.archived?`<button class="btn-sm btn-green restore-btn" data-id="${b.id}">♻️ שחזר</button>`:''}
+      ${b.archived?`<button class="btn-sm btn-red delete-btn" data-id="${b.id}" data-name="${b.name||''}">🗑️ מחק</button>`:''}
     </div></td>
   </tr>`).join('')+'</tbody></table>';
 }
@@ -250,6 +251,24 @@ document.addEventListener('click',async e=>{
     $('confirmOkBtn').onclick=async()=>{
       await updateDoc(doc(db,'businesses',id),{archived:true,active:false,archivedDate:new Date().toISOString().slice(0,10)});
       $('confirmModal').classList.remove('open');
+    };
+    $('confirmModal').classList.add('open');
+  }
+
+  // Delete permanently
+  const deleteBtn=e.target.closest('.delete-btn');
+  if(deleteBtn){
+    const id=deleteBtn.dataset.id;
+    const name=deleteBtn.dataset.name;
+    $('confirmTitle').textContent='🗑️ מחיקה סופית';
+    $('confirmMsg').textContent='למחוק לצמיתות את '+name+'? פעולה זו אינה ניתנת לביטול!';
+    $('confirmOkBtn').textContent='מחק לצמיתות';
+    $('confirmOkBtn').className='btn-sm btn-red';
+    $('confirmOkBtn').onclick=async()=>{
+      try{
+        await deleteDoc(doc(db,'businesses',id));
+        $('confirmModal').classList.remove('open');
+      }catch(err){alert('שגיאה: '+err.message);}
     };
     $('confirmModal').classList.add('open');
   }
