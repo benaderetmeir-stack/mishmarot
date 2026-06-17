@@ -6,53 +6,103 @@
 <title>משמרות – ניהול מערכת</title>
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f5f0e8;--surface:#fffdf7;--surface2:#f0e8d8;--border:#d4c4a0;--accent:#8b6914;--text:#2c1f0a;--text2:#7a6540;--green:#2d7a3a;--red:#c0392b;--radius:12px;--shadow:0 4px 20px rgba(139,105,20,0.15);}
+:root{--bg:#f5f0e8;--surface:#fffdf7;--surface2:#f0e8d8;--border:#d4c4a0;--accent:#8b6914;--text:#2c1f0a;--text2:#7a6540;--green:#2d7a3a;--red:#c0392b;--orange:#c45f0a;--radius:12px;--shadow:0 4px 20px rgba(139,105,20,0.15);}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:"Heebo",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
 .topbar{background:var(--surface);border-bottom:2px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
 .topbar h1{font-size:18px;font-weight:800;color:var(--accent);}
 .btn-logout{padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:"Heebo",sans-serif;font-size:12px;cursor:pointer;}
-.content{padding:20px;max-width:900px;margin:0 auto;}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;box-shadow:var(--shadow);}
-.stat-num{font-size:32px;font-weight:900;color:var(--accent);}
-.stat-label{font-size:12px;color:var(--text2);font-weight:600;margin-top:4px;}
+.content{padding:20px;max-width:1000px;margin:0 auto;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:center;box-shadow:var(--shadow);}
+.stat-num{font-size:28px;font-weight:900;color:var(--accent);}
+.stat-label{font-size:11px;color:var(--text2);font-weight:600;margin-top:4px;}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
-.card-title{font-size:16px;font-weight:700;margin-bottom:16px;}
+.card-title{font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;}
+.search{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:"Heebo",sans-serif;font-size:14px;margin-bottom:14px;}
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:16px;width:fit-content;}
+.tab{padding:8px 16px;border:none;border-radius:8px;font-family:"Heebo",sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text2);}
+.tab.active{background:var(--accent);color:#fff;}
 table{width:100%;border-collapse:collapse;}
 th{text-align:right;padding:10px;font-size:12px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);background:var(--surface2);}
-td{padding:10px;font-size:13px;border-bottom:1px solid var(--border);}
+td{padding:10px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:middle;}
 .badge-active{background:rgba(45,122,58,0.12);color:var(--green);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;}
 .badge-inactive{background:rgba(192,57,43,0.12);color:var(--red);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;}
-.btn-sm{padding:5px 10px;border-radius:6px;font-family:"Heebo",sans-serif;font-size:11px;font-weight:600;cursor:pointer;border:none;}
+.badge-archived{background:rgba(139,105,20,0.12);color:var(--accent);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;}
+.btn-sm{padding:5px 10px;border-radius:6px;font-family:"Heebo",sans-serif;font-size:11px;font-weight:600;cursor:pointer;}
 .btn-red{background:rgba(192,57,43,0.1);color:var(--red);border:1px solid rgba(192,57,43,0.3);}
 .btn-green{background:rgba(45,122,58,0.1);color:var(--green);border:1px solid rgba(45,122,58,0.3);}
-.search{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:"Heebo",sans-serif;font-size:14px;margin-bottom:14px;}
-.loading{text-align:center;padding:40px;color:var(--text2);}
+.btn-blue{background:rgba(37,99,168,0.1);color:#2563a8;border:1px solid rgba(37,99,168,0.3);}
+.btn-orange{background:rgba(196,95,10,0.1);color:var(--orange);border:1px solid rgba(196,95,10,0.3);}
+.btn-gray{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
+.actions{display:flex;gap:4px;flex-wrap:wrap;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(44,31,10,0.5);z-index:500;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow);}
+.modal h3{font-size:17px;font-weight:800;margin-bottom:18px;}
+.modal-footer{display:flex;gap:8px;margin-top:20px;justify-content:flex-end;}
+.detail-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-label{color:var(--text2);font-weight:600;}
+@media(max-width:680px){.stats{grid-template-columns:1fr 1fr;}.actions{flex-direction:column;}}
 </style>
 </head>
 <body>
 <div class="topbar">
-  <h1>🍽️ משמרות – ניהול מערכת</h1>
+  <h1>🍽️ ניהול מערכת משמרות</h1>
   <button class="btn-logout" id="logoutBtn">יציאה</button>
 </div>
+
 <div class="content">
   <div class="stats">
-    <div class="stat-card"><div class="stat-num" id="totalBusinesses">—</div><div class="stat-label">עסקים רשומים</div></div>
-    <div class="stat-card"><div class="stat-num" id="activeBusinesses">—</div><div class="stat-label">עסקים פעילים</div></div>
-    <div class="stat-card"><div class="stat-num" id="todayRegistrations">—</div><div class="stat-label">הצטרפו היום</div></div>
+    <div class="stat-card"><div class="stat-num" id="totalB">—</div><div class="stat-label">סה"כ עסקים</div></div>
+    <div class="stat-card"><div class="stat-num" id="activeB">—</div><div class="stat-label">פעילים</div></div>
+    <div class="stat-card"><div class="stat-num" id="inactiveB">—</div><div class="stat-label">מושבתים</div></div>
+    <div class="stat-card"><div class="stat-num" id="todayB">—</div><div class="stat-label">הצטרפו היום</div></div>
   </div>
+
   <div class="card">
-    <div class="card-title">👥 כל העסקים</div>
+    <div class="card-title">
+      <span>👥 עסקים</span>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="active">פעילים</button>
+      <button class="tab" data-tab="inactive">מושבתים</button>
+      <button class="tab" data-tab="archived">ארכיון</button>
+      <button class="tab" data-tab="all">הכל</button>
+    </div>
     <input class="search" id="searchInput" placeholder="🔍 חיפוש לפי שם עסק או אימייל..."/>
-    <div id="businessList"><div class="loading">טוען...</div></div>
+    <div id="businessList" style="overflow-x:auto"></div>
   </div>
+</div>
+
+<!-- DETAILS MODAL -->
+<div class="modal-overlay" id="detailsModal">
+<div class="modal">
+  <h3>📋 פרטי עסק</h3>
+  <div id="detailsContent"></div>
+  <div class="modal-footer">
+    <button class="btn-sm btn-gray" onclick="document.getElementById('detailsModal').classList.remove('open')">סגור</button>
+  </div>
+</div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirmModal">
+<div class="modal" style="width:380px">
+  <h3 id="confirmTitle">אישור</h3>
+  <p id="confirmMsg" style="color:var(--text2);font-size:14px;line-height:1.7"></p>
+  <div class="modal-footer">
+    <button class="btn-sm btn-gray" onclick="document.getElementById('confirmModal').classList.remove('open')">ביטול</button>
+    <button class="btn-sm btn-red" id="confirmOkBtn">אישור</button>
+  </div>
+</div>
 </div>
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getAuth,signOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import{getFirestore,collection,getDocs,doc,updateDoc,onSnapshot}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getAuth,sendPasswordResetEmail}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getFirestore,collection,doc,updateDoc,onSnapshot,setDoc,deleteDoc,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
 const app=initializeApp(FC);
@@ -60,22 +110,18 @@ const auth=getAuth(app);
 const db=getFirestore(app);
 const $=id=>document.getElementById(id);
 
-// Check admin password
+// Admin auth
 const ADMIN_PASS='200475';
-const savedAdmin=localStorage.getItem('mishmarot_admin');
-if(!savedAdmin){
+if(!localStorage.getItem('mishmarot_admin')){
   const pass=prompt('סיסמת מנהל מערכת:');
-  if(pass!==ADMIN_PASS){
-    alert('סיסמה שגויה!');
-    window.location.href='login.html';
-  } else {
-    localStorage.setItem('mishmarot_admin','1');
-  }
+  if(pass!==ADMIN_PASS){alert('סיסמה שגויה!');window.location.href='login.html';}
+  else localStorage.setItem('mishmarot_admin','1');
 }
 
 let _businesses=[];
+let _currentTab='active';
 
-// Load businesses - use admin SDK workaround with test mode rules
+// Load
 onSnapshot(collection(db,'businesses'),snap=>{
   _businesses=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   renderStats();
@@ -84,34 +130,149 @@ onSnapshot(collection(db,'businesses'),snap=>{
 
 function renderStats(){
   const today=new Date().toISOString().slice(0,10);
-  $('totalBusinesses').textContent=_businesses.length;
-  $('activeBusinesses').textContent=_businesses.filter(b=>b.active!==false).length;
-  $('todayRegistrations').textContent=_businesses.filter(b=>b.createdDate===today).length;
+  const active=_businesses.filter(b=>b.active!==false&&!b.archived);
+  const inactive=_businesses.filter(b=>b.active===false&&!b.archived);
+  $('totalB').textContent=_businesses.length;
+  $('activeB').textContent=active.length;
+  $('inactiveB').textContent=inactive.length;
+  $('todayB').textContent=_businesses.filter(b=>b.createdDate===today).length;
 }
 
 function renderBusinesses(){
   const q=$('searchInput').value.toLowerCase();
-  const filtered=_businesses.filter(b=>!q||b.name?.toLowerCase().includes(q)||b.email?.toLowerCase().includes(q));
+  let filtered=_businesses.filter(b=>{
+    if(q&&!b.name?.toLowerCase().includes(q)&&!b.email?.toLowerCase().includes(q))return false;
+    if(_currentTab==='active')return b.active!==false&&!b.archived;
+    if(_currentTab==='inactive')return b.active===false&&!b.archived;
+    if(_currentTab==='archived')return b.archived===true;
+    return true;
+  });
   if(!filtered.length){$('businessList').innerHTML='<p style="color:var(--text2);text-align:center;padding:20px">אין תוצאות</p>';return;}
-  $('businessList').innerHTML='<div style="overflow-x:auto"><table><thead><tr><th>שם עסק</th><th>אימייל</th><th>תאריך הצטרפות</th><th>סטטוס</th><th>פעולות</th></tr></thead><tbody>'+
-  filtered.map(b=>'<tr><td><strong>'+( b.name||'—')+'</strong></td><td style="direction:ltr;text-align:right">'+(b.email||'—')+'</td><td>'+(b.createdDate||'—')+'</td><td>'+(b.active!==false?'<span class="badge-active">פעיל</span>':'<span class="badge-inactive">מושבת</span>')+'</td><td><button class="btn-sm '+(b.active!==false?'btn-red':'btn-green')+' toggle-btn" data-id="'+b.id+'" data-active="'+(b.active!==false)+'">'+(b.active!==false?'השבת':'הפעל')+'</button></td></tr>').join('')+
-  '</tbody></table></div>';
+  $('businessList').innerHTML='<table><thead><tr><th>שם עסק</th><th>אימייל</th><th>הצטרף</th><th>סטטוס</th><th>פעולות</th></tr></thead><tbody>'+
+  filtered.map(b=>`<tr>
+    <td><strong>${b.name||'—'}</strong></td>
+    <td style="direction:ltr;text-align:right;font-size:12px">${b.email||'—'}</td>
+    <td style="font-size:12px;color:var(--text2)">${b.createdDate||'—'}</td>
+    <td>${b.archived?'<span class="badge-archived">ארכיון</span>':b.active!==false?'<span class="badge-active">פעיל</span>':'<span class="badge-inactive">מושבת</span>'}</td>
+    <td><div class="actions">
+      <button class="btn-sm btn-blue view-btn" data-id="${b.id}">👁️ פרטים</button>
+      <button class="btn-sm btn-orange reset-btn" data-id="${b.id}" data-email="${b.email||''}">🔑 איפוס סיסמה</button>
+      ${!b.archived?`<button class="btn-sm ${b.active!==false?'btn-red':'btn-green'} toggle-btn" data-id="${b.id}" data-active="${b.active!==false}">${b.active!==false?'השבת':'הפעל'}</button>`:''}
+      ${!b.archived?`<button class="btn-sm btn-gray archive-btn" data-id="${b.id}">📦 ארכיון</button>`:''}
+      ${b.archived?`<button class="btn-sm btn-green restore-btn" data-id="${b.id}">♻️ שחזר</button>`:''}
+    </div></td>
+  </tr>`).join('')+'</tbody></table>';
 }
+
+// TABS
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    _currentTab=tab.dataset.tab;
+    renderBusinesses();
+  });
+});
 
 $('searchInput').addEventListener('input',renderBusinesses);
 
+// EVENTS
 document.addEventListener('click',async e=>{
-  const btn=e.target.closest('.toggle-btn');
-  if(btn){
-    const id=btn.dataset.id;
-    const isActive=btn.dataset.active==='true';
-    await updateDoc(doc(db,'businesses',id),{active:!isActive});
+  // View details
+  const viewBtn=e.target.closest('.view-btn');
+  if(viewBtn){
+    const b=_businesses.find(x=>x.id===viewBtn.dataset.id);
+    if(!b)return;
+    // Count employees and shifts
+    let empCount=0,shiftCount=0;
+    try{
+      const empSnap=await getDocs(collection(db,'businesses/'+b.id+'/employees'));
+      empCount=empSnap.size;
+      const shiftSnap=await getDocs(collection(db,'businesses/'+b.id+'/shifts'));
+      shiftCount=shiftSnap.size;
+    }catch(e){}
+    $('detailsContent').innerHTML=`
+      <div class="detail-row"><span class="detail-label">שם עסק</span><span>${b.name||'—'}</span></div>
+      <div class="detail-row"><span class="detail-label">אימייל</span><span style="direction:ltr">${b.email||'—'}</span></div>
+      <div class="detail-row"><span class="detail-label">תאריך הצטרפות</span><span>${b.createdDate||'—'}</span></div>
+      <div class="detail-row"><span class="detail-label">סטטוס</span><span>${b.archived?'ארכיון':b.active!==false?'פעיל':'מושבת'}</span></div>
+      <div class="detail-row"><span class="detail-label">מספר עובדים</span><span style="font-weight:700;color:var(--accent)">${empCount}</span></div>
+      <div class="detail-row"><span class="detail-label">מספר משמרות</span><span style="font-weight:700;color:var(--accent)">${shiftCount}</span></div>
+      <div class="detail-row"><span class="detail-label">ID</span><span style="font-size:11px;color:var(--text2)">${b.id}</span></div>`;
+    $('detailsModal').classList.add('open');
+  }
+
+  // Reset password
+  const resetBtn=e.target.closest('.reset-btn');
+  if(resetBtn){
+    const email=resetBtn.dataset.email;
+    if(!email){alert('אין אימייל לעסק זה');return;}
+    $('confirmTitle').textContent='🔑 איפוס סיסמה';
+    $('confirmMsg').textContent='לשלוח מייל איפוס סיסמה ל: '+email+'?';
+    $('confirmOkBtn').textContent='שלח מייל';
+    $('confirmOkBtn').className='btn-sm btn-orange';
+    $('confirmOkBtn').onclick=async()=>{
+      try{
+        await sendPasswordResetEmail(auth,email);
+        $('confirmModal').classList.remove('open');
+        alert('✅ מייל נשלח!');
+      }catch(err){alert('שגיאה: '+err.message);}
+    };
+    $('confirmModal').classList.add('open');
+  }
+
+  // Toggle active
+  const toggleBtn=e.target.closest('.toggle-btn');
+  if(toggleBtn){
+    const id=toggleBtn.dataset.id;
+    const isActive=toggleBtn.dataset.active==='true';
+    const b=_businesses.find(x=>x.id===id);
+    $('confirmTitle').textContent=isActive?'השבתת עסק':'הפעלת עסק';
+    $('confirmMsg').textContent=(isActive?'להשבית':'להפעיל')+' את '+b?.name+'?';
+    $('confirmOkBtn').textContent=isActive?'השבת':'הפעל';
+    $('confirmOkBtn').className='btn-sm '+(isActive?'btn-red':'btn-green');
+    $('confirmOkBtn').onclick=async()=>{
+      await updateDoc(doc(db,'businesses',id),{active:!isActive});
+      $('confirmModal').classList.remove('open');
+    };
+    $('confirmModal').classList.add('open');
+  }
+
+  // Archive
+  const archiveBtn=e.target.closest('.archive-btn');
+  if(archiveBtn){
+    const id=archiveBtn.dataset.id;
+    const b=_businesses.find(x=>x.id===id);
+    $('confirmTitle').textContent='📦 העברה לארכיון';
+    $('confirmMsg').textContent='להעביר את '+b?.name+' לארכיון? העסק לא יוכל להיכנס למערכת.';
+    $('confirmOkBtn').textContent='העבר לארכיון';
+    $('confirmOkBtn').className='btn-sm btn-gray';
+    $('confirmOkBtn').onclick=async()=>{
+      await updateDoc(doc(db,'businesses',id),{archived:true,active:false,archivedDate:new Date().toISOString().slice(0,10)});
+      $('confirmModal').classList.remove('open');
+    };
+    $('confirmModal').classList.add('open');
+  }
+
+  // Restore
+  const restoreBtn=e.target.closest('.restore-btn');
+  if(restoreBtn){
+    const id=restoreBtn.dataset.id;
+    const b=_businesses.find(x=>x.id===id);
+    $('confirmTitle').textContent='♻️ שחזור עסק';
+    $('confirmMsg').textContent='לשחזר את '+b?.name+' מהארכיון?';
+    $('confirmOkBtn').textContent='שחזר';
+    $('confirmOkBtn').className='btn-sm btn-green';
+    $('confirmOkBtn').onclick=async()=>{
+      await updateDoc(doc(db,'businesses',id),{archived:false,active:true,archivedDate:null});
+      $('confirmModal').classList.remove('open');
+    };
+    $('confirmModal').classList.add('open');
   }
 });
 
-$('logoutBtn').addEventListener('click',async()=>{
-  await signOut(auth);
-  localStorage.clear();
+$('logoutBtn').addEventListener('click',()=>{
+  localStorage.removeItem('mishmarot_admin');
   window.location.href='login.html';
 });
 </script>
