@@ -534,8 +534,8 @@ let _pendDelShift=null,_pendOQ=null,_pendingArchiveEmpId=null,_pendingPermDelEmp
 let stopwatchTimers={},_qrCode=null,_html5QrScanner=null,_scanPending=null;
 let _prevNeeds={};
 const $=id=>document.getElementById(id);
-async function fbSet(c,id,d){await setDoc(doc(db,c,id),d);}
-async function fbDel(c,id){await deleteDoc(doc(db,c,id));}
+async function fbSet(c,id,d){await setDoc(bd(c,id),d);}
+async function fbDel(c,id){await deleteDoc(bd(c,id));}
 async function loadCustomRoles(){
   try{
     const snap=await getDoc(bd('settings','customRoles'));
