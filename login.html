@@ -144,8 +144,13 @@ $('loginBtn').addEventListener('click',async()=>{
     const uid=cred.user.uid;
     const snap=await getDoc(doc(db,'businesses',uid));
     if(snap.exists()){
+      const bData=snap.data();
+      if(bData.active===false||bData.archived){
+        $('loginErr').textContent='חשבון זה מושבת. צור קשר עם התמיכה.';
+        showLoading(false);return;
+      }
       localStorage.setItem('mishmarot_uid',uid);
-      localStorage.setItem('mishmarot_business',JSON.stringify(snap.data()));
+      localStorage.setItem('mishmarot_business',JSON.stringify(bData));
       localStorage.removeItem('mishmarot_emp');
       window.location.href='app.html';
     }else{
