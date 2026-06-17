@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>משמרות – כניסה</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f0e8;--surface:#fffdf7;--surface2:#f0e8d8;--border:#d4c4a0;--accent:#8b6914;--accent2:#6b4f10;--text:#2c1f0a;--text2:#7a6540;--green:#2d7a3a;--red:#c0392b;--radius:12px;--shadow:0 4px 20px rgba(139,105,20,0.15);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e8ddc8);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:420px;max-width:95vw;box-shadow:var(--shadow);animation:slideUp .5s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(30px);}to{opacity:1;transform:translateY(0);}}
+.logo{text-align:center;margin-bottom:28px;}
+.logo-icon{font-size:52px;display:block;margin-bottom:8px;}
+.logo h1{font-size:26px;font-weight:900;color:var(--accent);}
+.logo p{font-size:13px;color:var(--text2);margin-top:4px;}
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:24px;}
+.tab{flex:1;padding:10px;border:none;border-radius:8px;font-family:"Heebo",sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:transparent;color:var(--text2);transition:all .2s;}
+.tab.active{background:var(--accent);color:#fff;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:7px;}
+.fg input{width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:"Heebo",sans-serif;font-size:14px;direction:ltr;text-align:right;}
+.fg input:focus{outline:none;border-color:var(--accent);}
+.btn{width:100%;padding:13px;border:none;border-radius:var(--radius);font-family:"Heebo",sans-serif;font-size:15px;font-weight:700;cursor:pointer;background:var(--accent);color:#fff;margin-top:8px;transition:opacity .2s;}
+.btn:hover{opacity:.9;}
+.btn:disabled{opacity:.6;cursor:not-allowed;}
+.err{color:var(--red);font-size:13px;text-align:center;margin-top:10px;min-height:18px;}
+.suc{color:var(--green);font-size:13px;text-align:center;margin-top:10px;}
+.forgot{text-align:center;margin-top:12px;font-size:13px;color:var(--text2);}
+.forgot a{color:var(--accent);cursor:pointer;text-decoration:underline;}
+.divider{text-align:center;color:var(--text2);font-size:12px;margin:16px 0;position:relative;}
+.divider::before,.divider::after{content:"";position:absolute;top:50%;width:40%;height:1px;background:var(--border);}
+.divider::before{right:0;}.divider::after{left:0;}
+.loading{display:none;text-align:center;padding:20px;}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <span class="logo-icon">🍽️</span>
+    <h1>משמרות</h1>
+    <p>מערכת ניהול משמרות חכמה</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabLogin">כניסה</button>
+    <button class="tab" id="tabRegister">הרשמה</button>
+  </div>
+
+  <!-- LOGIN -->
+  <div id="loginForm">
+    <div class="fg"><label>אימייל</label><input type="email" id="loginEmail" placeholder="your@email.com"/></div>
+    <div class="fg"><label>סיסמה</label><input type="password" id="loginPass" placeholder="••••••"/></div>
+    <div class="err" id="loginErr"></div>
+    <button class="btn" id="loginBtn">כניסה למערכת</button>
+    <div class="forgot"><a id="forgotBtn">שכחתי סיסמה</a></div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="registerForm" style="display:none">
+    <div class="fg"><label>שם העסק</label><input type="text" id="regBusiness" placeholder="למשל: מסעדת הים"/></div>
+    <div class="fg"><label>אימייל</label><input type="email" id="regEmail" placeholder="your@email.com"/></div>
+    <div class="fg"><label>סיסמה</label><input type="password" id="regPass" placeholder="לפחות 6 תווים"/></div>
+    <div class="fg"><label>אימות סיסמה</label><input type="password" id="regPass2" placeholder="הזן שוב את הסיסמה"/></div>
+    <div class="err" id="registerErr"></div>
+    <button class="btn" id="registerBtn">צור חשבון חינמי</button>
+  </div>
+
+  <div class="loading" id="loadingDiv">
+    <div class="spinner"></div>
+    <p style="color:var(--text2);font-size:13px">מתחבר...</p>
+  </div>
+
+  <div class="suc" id="successMsg"></div>
+</div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getFirestore,doc,setDoc,getDoc}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FC={
+  apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",
+  authDomain:"mishmarot-2506e.firebaseapp.com",
+  projectId:"mishmarot-2506e",
+  storageBucket:"mishmarot-2506e.firebasestorage.app",
+  messagingSenderId:"386147385377",
+  appId:"1:386147385377:web:6d1c876b94077888e16360"
+};
+
+const app=initializeApp(FC);
+const auth=getAuth(app);
+const db=getFirestore(app);
+
+const $=id=>document.getElementById(id);
+
+// TABS
+$('tabLogin').addEventListener('click',()=>{
+  $('tabLogin').classList.add('active');$('tabRegister').classList.remove('active');
+  $('loginForm').style.display='';$('registerForm').style.display='none';
+  $('loginErr').textContent='';$('successMsg').textContent='';
+});
+$('tabRegister').addEventListener('click',()=>{
+  $('tabRegister').classList.add('active');$('tabLogin').classList.remove('active');
+  $('registerForm').style.display='';$('loginForm').style.display='none';
+  $('registerErr').textContent='';$('successMsg').textContent='';
+});
+
+function showLoading(show){
+  $('loadingDiv').style.display=show?'block':'none';
+  $('loginForm').style.display=show?'none':($('tabLogin').classList.contains('active')?'':'none');
+  $('registerForm').style.display=show?'none':($('tabRegister').classList.contains('active')?'':'none');
+}
+
+// LOGIN
+$('loginBtn').addEventListener('click',async()=>{
+  const email=$('loginEmail').value.trim();
+  const pass=$('loginPass').value.trim();
+  if(!email||!pass){$('loginErr').textContent='נא למלא אימייל וסיסמה';return;}
+  showLoading(true);
+  try{
+    const cred=await signInWithEmailAndPassword(auth,email,pass);
+    const uid=cred.user.uid;
+    // Check if superadmin
+    if(email==='meirbenaderet@mishmarot.app'){
+      window.location.href='admin.html';
+      return;
+    }
+    // Get business info
+    const snap=await getDoc(doc(db,'businesses',uid));
+    if(snap.exists()){
+      localStorage.setItem('mishmarot_uid',uid);
+      localStorage.setItem('mishmarot_business',JSON.stringify(snap.data()));
+      window.location.href='app.html';
+    }else{
+      $('loginErr').textContent='לא נמצא חשבון עסקי';
+      showLoading(false);
+    }
+  }catch(err){
+    showLoading(false);
+    if(err.code==='auth/invalid-credential'||err.code==='auth/wrong-password'){
+      $('loginErr').textContent='אימייל או סיסמה שגויים';
+    }else if(err.code==='auth/user-not-found'){
+      $('loginErr').textContent='משתמש לא קיים';
+    }else{
+      $('loginErr').textContent='שגיאה: '+err.message;
+    }
+  }
+});
+
+// REGISTER
+$('registerBtn').addEventListener('click',async()=>{
+  const business=$('regBusiness').value.trim();
+  const email=$('regEmail').value.trim();
+  const pass=$('regPass').value.trim();
+  const pass2=$('regPass2').value.trim();
+  if(!business){$('registerErr').textContent='נא להזין שם עסק';return;}
+  if(!email){$('registerErr').textContent='נא להזין אימייל';return;}
+  if(pass.length<6){$('registerErr').textContent='סיסמה חייבת להכיל לפחות 6 תווים';return;}
+  if(pass!==pass2){$('registerErr').textContent='הסיסמאות לא תואמות';return;}
+  showLoading(true);
+  try{
+    const cred=await createUserWithEmailAndPassword(auth,email,pass);
+    const uid=cred.user.uid;
+    const businessData={
+      name:business,
+      email:email,
+      uid:uid,
+      createdAt:Date.now(),
+      createdDate:new Date().toISOString().slice(0,10),
+      active:true
+    };
+    await setDoc(doc(db,'businesses',uid),businessData);
+    localStorage.setItem('mishmarot_uid',uid);
+    localStorage.setItem('mishmarot_business',JSON.stringify(businessData));
+    window.location.href='app.html';
+  }catch(err){
+    showLoading(false);
+    if(err.code==='auth/email-already-in-use'){
+      $('registerErr').textContent='אימייל כבר קיים במערכת';
+    }else{
+      $('registerErr').textContent='שגיאה: '+err.message;
+    }
+  }
+});
+
+// FORGOT PASSWORD
+$('forgotBtn').addEventListener('click',async()=>{
+  const email=$('loginEmail').value.trim();
+  if(!email){$('loginErr').textContent='נא להזין אימייל תחילה';return;}
+  try{
+    await sendPasswordResetEmail(auth,email);
+    $('loginErr').textContent='';
+    $('successMsg').textContent='✅ נשלח מייל לאיפוס סיסמה!';
+  }catch(err){
+    $('loginErr').textContent='שגיאה בשליחת מייל';
+  }
+});
+
+// ENTER KEY
+['loginEmail','loginPass'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click();}));
+['regBusiness','regEmail','regPass','regPass2'].forEach(id=>$(id).addEventListener('keydown',e=>{if(e.key==='Enter')$('registerBtn').click();}));
+</script>
+</body>
+</html>

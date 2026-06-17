@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>משמרות – ניהול מערכת</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f0e8;--surface:#fffdf7;--surface2:#f0e8d8;--border:#d4c4a0;--accent:#8b6914;--text:#2c1f0a;--text2:#7a6540;--green:#2d7a3a;--red:#c0392b;--radius:12px;--shadow:0 4px 20px rgba(139,105,20,0.15);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:"Heebo",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:2px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar h1{font-size:18px;font-weight:800;color:var(--accent);}
+.btn-logout{padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text2);font-family:"Heebo",sans-serif;font-size:12px;cursor:pointer;}
+.content{padding:20px;max-width:900px;margin:0 auto;}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;text-align:center;box-shadow:var(--shadow);}
+.stat-num{font-size:32px;font-weight:900;color:var(--accent);}
+.stat-label{font-size:12px;color:var(--text2);font-weight:600;margin-top:4px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:var(--shadow);}
+.card-title{font-size:16px;font-weight:700;margin-bottom:16px;}
+table{width:100%;border-collapse:collapse;}
+th{text-align:right;padding:10px;font-size:12px;font-weight:700;color:var(--text2);border-bottom:2px solid var(--border);background:var(--surface2);}
+td{padding:10px;font-size:13px;border-bottom:1px solid var(--border);}
+.badge-active{background:rgba(45,122,58,0.12);color:var(--green);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;}
+.badge-inactive{background:rgba(192,57,43,0.12);color:var(--red);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;}
+.btn-sm{padding:5px 10px;border-radius:6px;font-family:"Heebo",sans-serif;font-size:11px;font-weight:600;cursor:pointer;border:none;}
+.btn-red{background:rgba(192,57,43,0.1);color:var(--red);border:1px solid rgba(192,57,43,0.3);}
+.btn-green{background:rgba(45,122,58,0.1);color:var(--green);border:1px solid rgba(45,122,58,0.3);}
+.search{width:100%;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:"Heebo",sans-serif;font-size:14px;margin-bottom:14px;}
+.loading{text-align:center;padding:40px;color:var(--text2);}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>🍽️ משמרות – ניהול מערכת</h1>
+  <button class="btn-logout" id="logoutBtn">יציאה</button>
+</div>
+<div class="content">
+  <div class="stats">
+    <div class="stat-card"><div class="stat-num" id="totalBusinesses">—</div><div class="stat-label">עסקים רשומים</div></div>
+    <div class="stat-card"><div class="stat-num" id="activeBusinesses">—</div><div class="stat-label">עסקים פעילים</div></div>
+    <div class="stat-card"><div class="stat-num" id="todayRegistrations">—</div><div class="stat-label">הצטרפו היום</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">👥 כל העסקים</div>
+    <input class="search" id="searchInput" placeholder="🔍 חיפוש לפי שם עסק או אימייל..."/>
+    <div id="businessList"><div class="loading">טוען...</div></div>
+  </div>
+</div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getAuth,signOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getFirestore,collection,getDocs,doc,updateDoc,onSnapshot}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
+const app=initializeApp(FC);
+const auth=getAuth(app);
+const db=getFirestore(app);
+const $=id=>document.getElementById(id);
+
+let _businesses=[];
+
+// Load businesses
+onSnapshot(collection(db,'businesses'),snap=>{
+  _businesses=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  renderStats();
+  renderBusinesses();
+});
+
+function renderStats(){
+  const today=new Date().toISOString().slice(0,10);
+  $('totalBusinesses').textContent=_businesses.length;
+  $('activeBusinesses').textContent=_businesses.filter(b=>b.active!==false).length;
+  $('todayRegistrations').textContent=_businesses.filter(b=>b.createdDate===today).length;
+}
+
+function renderBusinesses(){
+  const q=$('searchInput').value.toLowerCase();
+  const filtered=_businesses.filter(b=>!q||b.name?.toLowerCase().includes(q)||b.email?.toLowerCase().includes(q));
+  if(!filtered.length){$('businessList').innerHTML='<p style="color:var(--text2);text-align:center;padding:20px">אין תוצאות</p>';return;}
+  $('businessList').innerHTML='<div style="overflow-x:auto"><table><thead><tr><th>שם עסק</th><th>אימייל</th><th>תאריך הצטרפות</th><th>סטטוס</th><th>פעולות</th></tr></thead><tbody>'+
+  filtered.map(b=>'<tr><td><strong>'+( b.name||'—')+'</strong></td><td style="direction:ltr;text-align:right">'+(b.email||'—')+'</td><td>'+(b.createdDate||'—')+'</td><td>'+(b.active!==false?'<span class="badge-active">פעיל</span>':'<span class="badge-inactive">מושבת</span>')+'</td><td><button class="btn-sm '+(b.active!==false?'btn-red':'btn-green')+' toggle-btn" data-id="'+b.id+'" data-active="'+(b.active!==false)+'">'+(b.active!==false?'השבת':'הפעל')+'</button></td></tr>').join('')+
+  '</tbody></table></div>';
+}
+
+$('searchInput').addEventListener('input',renderBusinesses);
+
+document.addEventListener('click',async e=>{
+  const btn=e.target.closest('.toggle-btn');
+  if(btn){
+    const id=btn.dataset.id;
+    const isActive=btn.dataset.active==='true';
+    await updateDoc(doc(db,'businesses',id),{active:!isActive});
+  }
+});
+
+$('logoutBtn').addEventListener('click',async()=>{
+  await signOut(auth);
+  localStorage.clear();
+  window.location.href='login.html';
+});
+</script>
+</body>
+</html>
