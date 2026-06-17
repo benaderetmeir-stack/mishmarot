@@ -1598,13 +1598,18 @@ $('closeProfileBtn').addEventListener('click',()=>closeModal('empProfileModal'))
 
 // INIT
 document.addEventListener('DOMContentLoaded',()=>{
-  loadAdminSettings().then(()=>loadCustomRoles()).then(()=>startListeners());
-  // Check session immediately
+  loadAdminSettings().then(()=>loadCustomRoles()).then(()=>{
+    startListeners();
+    // Auto-login if came from login.html
+    if(_businessId&&!CU){
+      CU={type:'manager'};
+      enterApp(_businessData.name||'מנהל');
+    }
+  });
   const _savedCu=localStorage.getItem('cu');
   setTimeout(()=>{
     $('loadingOverlay').style.display='none';
-    // Only show login if no session saved and not restored
-    if(!CU&&!_savedCu) $('loginScreen').classList.add('active');
+    if(!CU&&!_businessId&&!_savedCu) $('loginScreen').classList.add('active');
     // If session saved but not yet restored, wait more
     else if(!CU&&_savedCu){
       const _waitLogin=setInterval(()=>{
