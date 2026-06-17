@@ -325,7 +325,13 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
 
 <!-- MY SHIFTS -->
 <div id="panel-myshifts" class="panel">
-  <div class="card"><div class="card-title">📋 המשמרות שלי</div><div id="myShiftsList"></div></div>
+  <div class="card">
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>📋 המשמרות שלי</span>
+      <button class="bs bg2" id="refreshShiftsBtn" style="padding:6px 12px;font-size:12px">🔄 רענן</button>
+    </div>
+    <div id="myShiftsList"></div>
+  </div>
 </div>
 
 <!-- MY HOURS -->
@@ -1212,6 +1218,7 @@ function startStopwatch(swId,empId,shiftId){
 }
 
 // MY HOURS
+$('refreshShiftsBtn').addEventListener('click',()=>renderMyShifts());
 $('myHoursWeekBtn').addEventListener('click',()=>renderMyHours('week'));
 $('myHoursMonthBtn').addEventListener('click',()=>renderMyHours('month'));
 function renderMyHours(period){
