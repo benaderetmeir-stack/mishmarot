@@ -181,7 +181,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
 <div id="appScreen" class="screen">
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:10px"><span class="topbar-logo">🍽️ משמרות</span><span class="sync-dot"></span></div>
-  <div style="display:flex;align-items:center;gap:8px"><span class="topbar-greeting" style="font-size:12px;color:var(--text2)">שלום, <button id="topbarName" style="font-weight:600;cursor:pointer;text-decoration:underline;color:var(--accent);background:none;border:none;font-family:Heebo,sans-serif;font-size:14px;padding:4px 8px;border-radius:6px">—</button></span><button class="btn-logout" id="refreshBtn" title="רענן">🔄</button><button class="btn-logout" id="adminSettingsTopBtn" title="הגדרות" style="font-size:16px">⚙️</button><button class="btn-logout" id="logoutBtn">יציאה</button></div>
+  <div style="display:flex;align-items:center;gap:8px"><span id="businessCodeDisplay" style="font-size:11px;color:var(--accent);font-weight:700;background:rgba(139,105,20,0.1);padding:3px 8px;border-radius:6px;cursor:pointer" title="קוד לעובדים"></span><span class="topbar-greeting" style="font-size:12px;color:var(--text2)">שלום, <button id="topbarName" style="font-weight:600;cursor:pointer;text-decoration:underline;color:var(--accent);background:none;border:none;font-family:Heebo,sans-serif;font-size:14px;padding:4px 8px;border-radius:6px">—</button></span><button class="btn-logout" id="refreshBtn" title="רענן">🔄</button><button class="btn-logout" id="adminSettingsTopBtn" title="הגדרות" style="font-size:16px">⚙️</button><button class="btn-logout" id="logoutBtn">יציאה</button></div>
 </div>
 <div id="mgrNav" style="background:var(--surface);border-bottom:2px solid var(--border);display:none">
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
@@ -627,6 +627,11 @@ function doLogin(){
 function enterApp(name){
   $('loginScreen').classList.remove('active');$('appScreen').classList.add('active');
   $('topbarName').textContent=CU?.type==='manager'?(_businessData.name||_adminUser):name;
+  // Show business code for manager
+  if(CU?.type==='manager'&&_businessData.businessCode){
+    const codeEl=document.getElementById('businessCodeDisplay');
+    if(codeEl)codeEl.textContent='קוד עסק: '+_businessData.businessCode;
+  }
   $('mgrNav').style.display=CU.type==='manager'?'block':'none';
   $('empNav').style.display=CU.type==='employee'?'':'none';
   if(CU.type==='manager'){showPanel('dashboard');renderDashboard();populateRepEmpSelect();}
@@ -644,6 +649,7 @@ function enterApp(name){
 function logout(){
   Object.values(stopwatchTimers).forEach(clearInterval);stopwatchTimers={};CU=null;
   localStorage.removeItem('cu');
+  localStorage.removeItem('mishmarot_emp');
   signOut(auth).catch(()=>{});
   window.location.href='login.html';
 }
@@ -1602,8 +1608,17 @@ document.addEventListener('DOMContentLoaded',()=>{
     startListeners();
     // Auto-login if came from login.html
     if(_businessId&&!CU){
-      CU={type:'manager'};
-      enterApp(_businessData.name||'מנהל');
+      const savedEmp=localStorage.getItem('mishmarot_emp');
+      if(savedEmp){
+        // Employee login
+        const emp=JSON.parse(savedEmp);
+        CU={type:'employee',emp};
+        enterApp(emp.name);
+      } else {
+        // Manager login
+        CU={type:'manager'};
+        enterApp(_businessData.name||'מנהל');
+      }
     }
   });
   const _savedCu=localStorage.getItem('cu');
