@@ -47,8 +47,9 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
   </div>
 
   <div class="tabs">
-    <button class="tab active" id="tabLogin">כניסה</button>
+    <button class="tab active" id="tabLogin">כניסה מנהל</button>
     <button class="tab" id="tabRegister">הרשמה</button>
+    <button class="tab" id="tabEmployee">כניסה עובד</button>
   </div>
 
   <!-- LOGIN -->
@@ -58,6 +59,17 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
     <div class="err" id="loginErr"></div>
     <button class="btn" id="loginBtn">כניסה למערכת</button>
     <div class="forgot"><a id="forgotBtn">שכחתי סיסמה</a></div>
+  </div>
+
+  <!-- EMPLOYEE -->
+  <div id="employeeForm" style="display:none">
+    <div style="background:rgba(139,105,20,0.08);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px;color:var(--text2)">
+      💡 קבל את קוד העסק מהמנהל שלך
+    </div>
+    <div class="fg"><label>קוד עסק</label><input type="text" id="empBusinessCode" placeholder="קוד שקיבלת מהמנהל"/></div>
+    <div class="fg"><label>קוד אישי</label><input type="text" id="empPersonalCode" placeholder="הקוד האישי שלך"/></div>
+    <div class="err" id="employeeErr"></div>
+    <button class="btn" id="employeeBtn">כניסה למשמרות</button>
   </div>
 
   <!-- REGISTER -->
@@ -114,6 +126,7 @@ function showLoading(show){
   $('loadingDiv').style.display=show?'block':'none';
   $('loginForm').style.display=show?'none':($('tabLogin').classList.contains('active')?'':'none');
   $('registerForm').style.display=show?'none':($('tabRegister').classList.contains('active')?'':'none');
+  $('employeeForm').style.display=show?'none':($('tabEmployee').classList.contains('active')?'':'none');
 }
 
 // LOGIN
@@ -166,10 +179,13 @@ $('registerBtn').addEventListener('click',async()=>{
   try{
     const cred=await createUserWithEmailAndPassword(auth,email,pass);
     const uid=cred.user.uid;
+    // Generate short unique business code
+    const bCode=business.replace(/[^a-zA-Zא-ת]/g,'').slice(0,4).toUpperCase()+(Math.floor(100+Math.random()*900));
     const businessData={
       name:business,
       email:email,
       uid:uid,
+      businessCode:bCode,
       createdAt:Date.now(),
       createdDate:new Date().toISOString().slice(0,10),
       active:true
@@ -198,6 +214,47 @@ $('forgotBtn').addEventListener('click',async()=>{
     $('successMsg').textContent='✅ נשלח מייל לאיפוס סיסמה!';
   }catch(err){
     $('loginErr').textContent='שגיאה בשליחת מייל';
+  }
+});
+
+// EMPLOYEE TAB
+$('tabEmployee').addEventListener('click',()=>{
+  $('tabEmployee').classList.add('active');
+  $('tabLogin').classList.remove('active');
+  $('tabRegister').classList.remove('active');
+  $('employeeForm').style.display='';
+  $('loginForm').style.display='none';
+  $('registerForm').style.display='none';
+  $('employeeErr').textContent='';$('successMsg').textContent='';
+});
+
+// EMPLOYEE LOGIN
+$('employeeBtn').addEventListener('click',async()=>{
+  const businessCode=$('empBusinessCode').value.trim().toUpperCase();
+  const personalCode=$('empPersonalCode').value.trim();
+  if(!businessCode||!personalCode){$('employeeErr').textContent='נא למלא קוד עסק וקוד אישי';return;}
+  showLoading(true);
+  try{
+    // Find business by code
+    const{getFirestore,collection,query,where,getDocs,doc,getDoc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const db2=getFirestore();
+    const bSnap=await getDocs(query(collection(db2,'businesses'),where('businessCode','==',businessCode)));
+    if(bSnap.empty){$('employeeErr').textContent='קוד עסק לא נמצא';showLoading(false);return;}
+    const businessDoc=bSnap.docs[0];
+    const businessId=businessDoc.id;
+    const businessData=businessDoc.data();
+    // Find employee by personal code
+    const empSnap=await getDocs(query(collection(db2,'businesses/'+businessId+'/employees'),where('code','==',personalCode)));
+    if(empSnap.empty){$('employeeErr').textContent='קוד אישי לא נמצא';showLoading(false);return;}
+    const emp={id:empSnap.docs[0].id,...empSnap.docs[0].data()};
+    if(emp.archived){$('employeeErr').textContent='עובד לא פעיל';showLoading(false);return;}
+    localStorage.setItem('mishmarot_uid',businessId);
+    localStorage.setItem('mishmarot_business',JSON.stringify(businessData));
+    localStorage.setItem('mishmarot_emp',JSON.stringify(emp));
+    window.location.href='app.html';
+  }catch(err){
+    showLoading(false);
+    $('employeeErr').textContent='שגיאה: '+err.message;
   }
 });
 
