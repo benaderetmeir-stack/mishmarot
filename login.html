@@ -180,7 +180,8 @@ $('registerBtn').addEventListener('click',async()=>{
     const cred=await createUserWithEmailAndPassword(auth,email,pass);
     const uid=cred.user.uid;
     // Generate short unique business code
-    const bCode=business.replace(/[^a-zA-Zא-ת]/g,'').slice(0,4).toUpperCase()+(Math.floor(100+Math.random()*900));
+    // Generate 4-digit business code
+    const bCode=String(Math.floor(1000+Math.random()*9000));
     const businessData={
       name:business,
       email:email,
