@@ -268,7 +268,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
 <!-- SCHEDULE -->
 <div id="panel-schedule" class="panel">
   <div class="card">
-    <div class="card-title">📅 בניית לוח שבועי</div>
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>📅 בניית לוח שבועי</span><button class="bs bg2" id="shiftTemplatesBtn" style="font-size:12px;padding:6px 12px">⚙️ תבניות שעות</button></div>
     <div class="form-row">
       <div class="fg"><label>בחר שבוע</label><input type="date" id="weekStart"/></div>
       <button class="bs bg2" id="loadWeekBtn">טען שבוע</button>
@@ -468,6 +468,18 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
   <div class="modal-footer">
     <button class="bs bg2" id="cancelPermDeleteEmpBtn">ביטול</button>
     <button class="bs bd" id="confirmPermDeleteEmpBtn">🗑️ מחק לצמיתות</button>
+  </div>
+</div>
+</div>
+
+<div class="modal-overlay" id="shiftTemplatesModal">
+<div class="modal" style="width:420px">
+  <h3>⚙️ תבניות שעות</h3>
+  <p style="color:var(--text2);font-size:13px;margin-bottom:16px">הגדר שעות ברירת מחדל לכל סוג משמרת</p>
+  <div id="templatesList"></div>
+  <div class="modal-footer">
+    <button class="bs bg2" id="closeTemplatesBtn">סגור</button>
+    <button class="bs ba" id="saveTemplatesBtn">💾 שמור</button>
   </div>
 </div>
 </div>
@@ -964,7 +976,27 @@ document.addEventListener('click',async function(e){
     _pendingPermDelEmpId=btn.dataset.empid;openModal('confirmPermDeleteEmpModal');
   }
   const sntBtn=e.target.closest('.snt-btn');
-  if(sntBtn){const s=_shifts.find(x=>x.id===sntBtn.dataset.sid);if(s){s.name=sntBtn.dataset.name;fbSet('shifts',s.id,s);markDirty(s.id);sntBtn.closest('.shift-card').querySelectorAll('.snt-btn').forEach(b=>b.classList.toggle('active',b.dataset.name===sntBtn.dataset.name));}}
+  if(sntBtn){
+    const s=_shifts.find(x=>x.id===sntBtn.dataset.sid);
+    if(s){
+      s.name=sntBtn.dataset.name;
+      // Apply template hours if available
+      const tpl=_templates[sntBtn.dataset.name];
+      if(tpl){
+        s.start=tpl.start;s.end=tpl.end;
+        // Update time inputs in card
+        const card=sntBtn.closest('.shift-card');
+        if(card){
+          const startInput=card.querySelector('.shift-time-input[data-field="start"]');
+          const endInput=card.querySelector('.shift-time-input[data-field="end"]');
+          if(startInput)startInput.value=tpl.start;
+          if(endInput)endInput.value=tpl.end;
+        }
+      }
+      fbSet('shifts',s.id,s);markDirty(s.id);
+      sntBtn.closest('.shift-card').querySelectorAll('.snt-btn').forEach(b=>b.classList.toggle('active',b.dataset.name===sntBtn.dataset.name));
+    }
+  }
   const confBtn=e.target.closest('.confirm-shift-btn');if(confBtn)confirmShift(confBtn.dataset.sid);
   const scanBtn=e.target.closest('.scan-clock-btn');
   if(scanBtn){
@@ -1582,6 +1614,50 @@ $('saveAdminSettingsBtn').addEventListener('click',async()=>{
   toast('✅ הגדרות נשמרו!');
 });
 
+// SHIFT TEMPLATES
+const DEFAULT_TEMPLATES={
+  'בוקר':{start:'08:00',end:'16:00'},
+  'צהריים':{start:'12:00',end:'20:00'},
+  'ערב':{start:'16:00',end:'23:00'},
+  'לילה':{start:'23:00',end:'07:00'},
+  'מיוחד':{start:'08:00',end:'14:00'}
+};
+let _templates={...DEFAULT_TEMPLATES};
+
+async function loadTemplates(){
+  try{
+    const snap=await getDoc(bd('settings','shiftTemplates'));
+    if(snap.exists())_templates={...DEFAULT_TEMPLATES,...snap.data()};
+  }catch(e){}
+}
+
+function openTemplatesModal(){
+  let html='';
+  Object.entries(_templates).forEach(([name,val])=>{
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px;background:var(--surface2);border-radius:8px">
+      <span style="font-weight:700;min-width:60px">${name}</span>
+      <input type="time" value="${val.start}" data-tname="${name}" data-field="start" class="tpl-input" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:13px"/>
+      <span style="color:var(--text2)">–</span>
+      <input type="time" value="${val.end}" data-tname="${name}" data-field="end" class="tpl-input" style="flex:1;padding:7px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:13px"/>
+    </div>`;
+  });
+  $('templatesList').innerHTML=html;
+  openModal('shiftTemplatesModal');
+}
+
+$('shiftTemplatesBtn').addEventListener('click',openTemplatesModal);
+$('closeTemplatesBtn').addEventListener('click',()=>closeModal('shiftTemplatesModal'));
+$('saveTemplatesBtn').addEventListener('click',async()=>{
+  document.querySelectorAll('.tpl-input').forEach(inp=>{
+    const name=inp.dataset.tname,field=inp.dataset.field;
+    if(!_templates[name])_templates[name]={start:'',end:''};
+    _templates[name][field]=inp.value;
+  });
+  await fbSet('settings','shiftTemplates',_templates);
+  closeModal('shiftTemplatesModal');
+  toast('✅ תבניות נשמרו!');
+});
+
 // PRINT
 window.printArchive=function printArchive(elId){
   const el=document.getElementById(elId);
@@ -1631,7 +1707,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
   }
 
-  loadAdminSettings().then(()=>loadCustomRoles()).then(()=>{
+  loadAdminSettings().then(()=>loadCustomRoles()).then(()=>loadTemplates()).then(()=>{
     startListeners();
     if(CU?.type==='employee') enterApp(CU.emp.name);
     else if(CU?.type==='manager') enterApp(_businessData.name||'מנהל');
