@@ -854,7 +854,11 @@ function openEmpProfile(id){
   $('profileClockEntries').innerHTML='';
   const spontSel=$('pSpontShift');
   spontSel.innerHTML='<option value="">-- ללא --</option>'+_shifts.sort((a,b)=>a.date.localeCompare(b.date)).map(s=>'<option value="'+s.id+'">'+fmtDate(s.date)+' '+(s.name||'')+' '+s.start+'–'+s.end+'</option>').join('');
-  const appShifts=_shifts.filter(s=>Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))).sort((a,b)=>a.date.localeCompare(b.date));
+  // Filter shifts for current month only
+  const now=new Date();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
+  const monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10);
+  const appShifts=_shifts.filter(s=>Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))&&s.date>=monthStart&&s.date<=monthEnd).sort((a,b)=>a.date.localeCompare(b.date));
   $('profileShifts').innerHTML=appShifts.length?appShifts.map(s=>{const mins=calcActualMins(emp.id,s.id);return'<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+fmtDate(s.date)+' – '+(s.name||'')+'</span><span style="color:var(--text2)">'+s.start+'–'+s.end+(mins>0?' | '+fmtMins(mins):'')+'</span></div>';}).join(''):'<p style="color:var(--text2);font-size:13px">אין משמרות מאושרות</p>';
   openModal('empProfileModal');
 }
