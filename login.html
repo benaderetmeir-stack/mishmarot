@@ -61,7 +61,8 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
     <button class="btn" id="loginBtn">כניסה</button>
     <div class="bottom-links">
       <a id="forgotBtn">שכחתי סיסמה</a> |
-      <a id="showRegisterBtn">הרשמה ראשונה?</a>
+      <a id="showRegisterBtn">הרשמה ראשונה?</a> |
+      <a id="shareEmpBtn">שתף קישור לעובד</a>
     </div>
     <div class="suc" id="successMsg"></div>
 
@@ -117,6 +118,13 @@ $('tabEmployee').addEventListener('click',()=>{
 });
 
 // SHOW/HIDE REGISTER
+$('shareEmpBtn').addEventListener('click',()=>{
+  const siteLink=window.location.href.split('?')[0];
+  const msg='שלום! הצטרפת למערכת ניהול משמרות.\n\nלכניסה למשמרות שלך, היכנס לקישור:\n'+siteLink+'\n\nולחץ על "כניסה עובד" - תצטרך קוד עסק וקוד אישי שיתנו לך.';
+  const waUrl='https://wa.me/?text='+encodeURIComponent(msg);
+  window.open(waUrl,'_blank');
+});
+
 $('showRegisterBtn').addEventListener('click',()=>{
   const sec=$('registerSection');
   const isOpen=sec.classList.contains('open');
