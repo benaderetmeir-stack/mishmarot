@@ -8,10 +8,11 @@
 <meta name="version" content="1781525816">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ניהול משמרות</title>
-<link rel="manifest" href="data:application/json,{%22name%22:%22משמרת%22,%22short_name%22:%22משמרת%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23f5f0e8%22,%22theme_color%22:%22%238b6914%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%238b6914'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle'%3E🍽️%3C/text%3E%3C/svg%3E%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}">
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjogItee16nXnteo15XXqiIsICJzaG9ydF9uYW1lIjogItee16nXnteo15XXqiIsICJzdGFydF91cmwiOiAiLiIsICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLCAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjVmMGU4IiwgInRoZW1lX2NvbG9yIjogIiM4YjY5MTQiLCAiaWNvbnMiOiBbeyJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhacFpYZENiM2c5SWpBZ01DQXhNREFnTVRBd0lqNDhjbVZqZENCM2FXUjBhRDBpTVRBd0lpQm9aV2xuYUhROUlqRXdNQ0lnY25nOUlqSXlJaUJtYVd4c1BTSWpaalZtTUdVNElpOCtQR2NnWm1sc2JEMGlJemhpTmpreE5DSStQSEJoZEdnZ1pEMGlUVEUySURRMGFESTJZVGtnT1NBd0lEQXhNQ0F4TTJFNUlEa2dNQ0F3TURBZ01UTm9MVEkyZWlJdlBqd3ZaejQ4WnlCbWFXeHNQU0lqWXpRNU1EQmhJajQ4Y0dGMGFDQmtQU0pOTkRZZ05EUm9NaloyTWpab0xUSTJZVGtnT1NBd0lEQXhNQzB4TTJFNUlEa2dNQ0F3TURBdE1UTjZJaTgrUEM5blBqeG5JR1pwYkd3OUlpTTRZalk1TVRRaUlHOXdZV05wZEhrOUlqQXVOVFVpUGp4d1lYUm9JR1E5SWswM09DQTBOR2d5Tm1FNUlEa2dNQ0F3TVRBZ01UTmhPU0E1SURBZ01EQXdJREV6YUMweU5ub2lMejQ4TDJjK1BDOXpkbWMrIiwgInNpemVzIjogIjE5MngxOTIiLCAidHlwZSI6ICJpbWFnZS9zdmcreG1sIn1dfQ==">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="משמרת">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIyIiBmaWxsPSIjZjVmMGU4Ii8+PGcgZmlsbD0iIzhiNjkxNCI+PHBhdGggZD0iTTE2IDQ0aDI2YTkgOSAwIDAxMCAxM2E5IDkgMCAwMDAgMTNoLTI2eiIvPjwvZz48ZyBmaWxsPSIjYzQ5MDBhIj48cGF0aCBkPSJNNDYgNDRoMjZ2MjZoLTI2YTkgOSAwIDAxMC0xM2E5IDkgMCAwMDAtMTN6Ii8+PC9nPjxnIGZpbGw9IiM4YjY5MTQiIG9wYWNpdHk9IjAuNTUiPjxwYXRoIGQ9Ik03OCA0NGgyNmE5IDkgMCAwMTAgMTNhOSA5IDAgMDAwIDEzaC0yNnoiLz48L2c+PC9zdmc+">
 <meta name="theme-color" content="#8b6914">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -180,7 +181,14 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
 <!-- APP -->
 <div id="appScreen" class="screen">
 <div class="topbar">
-  <div style="display:flex;align-items:center;gap:10px"><span class="topbar-logo">🍽️ משמרות</span><span class="sync-dot"></span></div>
+  <div style="display:flex;align-items:center;gap:10px"><span class="topbar-logo" style="display:flex;align-items:center;gap:8px">
+  <svg width="26" height="22" viewBox="0 0 100 80" style="flex-shrink:0">
+    <g fill="#8b6914"><path d="M 8 28 h24 a8 8 0 0 1 0 12 a8 8 0 0 0 0 12 h-24 z"/></g>
+    <g fill="#c4900a"><path d="M 36 28 h24 v24 h-24 a8 8 0 0 1 0 -12 a8 8 0 0 0 0 -12 z"/></g>
+    <g fill="#8b6914" opacity="0.55"><path d="M 66 28 h24 a8 8 0 0 1 0 12 a8 8 0 0 0 0 12 h-24 z"/></g>
+  </svg>
+  משמרות
+</span><span class="sync-dot"></span></div>
   <div style="display:flex;align-items:center;gap:8px"><span id="businessCodeDisplay" style="font-size:11px;color:var(--accent);font-weight:700;background:rgba(139,105,20,0.1);padding:3px 8px;border-radius:6px;cursor:pointer" title="קוד לעובדים"></span><span class="topbar-greeting" style="font-size:12px;color:var(--text2)">שלום, <button id="topbarName" style="font-weight:600;cursor:pointer;text-decoration:underline;color:var(--accent);background:none;border:none;font-family:Heebo,sans-serif;font-size:14px;padding:4px 8px;border-radius:6px">—</button></span><button class="btn-logout" id="refreshBtn" title="רענן">🔄</button><button class="btn-logout" id="adminSettingsTopBtn" title="הגדרות" style="font-size:16px">⚙️</button><button class="btn-logout" id="logoutBtn">יציאה</button></div>
 </div>
 <div id="mgrNav" style="background:var(--surface);border-bottom:2px solid var(--border);display:none">
