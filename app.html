@@ -336,7 +336,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
   <div class="card">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
       <span>📋 המשמרות שלי</span>
-      <button class="bs bg2" id="refreshShiftsBtn" style="padding:6px 12px;font-size:12px">🔄 רענן</button>
+      <div style="display:flex;gap:6px">
+        <button class="bs bg2" id="toggleHistoryBtn" style="padding:6px 12px;font-size:12px">📅 הצג היסטוריה</button>
+        <button class="bs bg2" id="refreshShiftsBtn" style="padding:6px 12px;font-size:12px">🔄 רענן</button>
+      </div>
     </div>
     <div id="myShiftsList"></div>
   </div>
@@ -1209,14 +1212,21 @@ async function doSpont(){
 }
 
 // EMPLOYEE VIEWS
+let _showAllMyShifts=false;
 function renderMyShifts(){
   const emp=CU.emp;
   const today=new Date().toISOString().slice(0,10);
-  const shifts=_shifts.filter(s=>(s.needs?.[emp.role]||0)>0||Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))).sort((a,b)=>a.date.localeCompare(b.date));
+  let shifts=_shifts.filter(s=>(s.needs?.[emp.role]||0)>0||Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!_showAllMyShifts){
+    const now=new Date();
+    const sun=new Date(now);sun.setDate(now.getDate()-now.getDay());
+    const sat=new Date(sun);sat.setDate(sun.getDate()+6);
+    const weekStartIso=sun.toISOString().slice(0,10),weekEndIso=sat.toISOString().slice(0,10);
+    shifts=shifts.filter(s=>s.date>=weekStartIso&&s.date<=weekEndIso);
+  }
+  $('toggleHistoryBtn').textContent=_showAllMyShifts?'📅 הצג שבוע נוכחי':'📅 הצג היסטוריה';
   if(!shifts.length){
-    // Debug info
-    console.log('_shifts count:', _shifts.length, 'emp role:', emp?.role, 'emp id:', emp?.id);
-    $('myShiftsList').innerHTML='<div style="text-align:center;padding:40px;color:var(--text2)"><span style="font-size:40px;display:block;margin-bottom:10px">📅</span><p>אין משמרות רלוונטיות</p><p style="font-size:11px;margin-top:8px">תפקיד: '+(emp?.role||'לא ידוע')+'</p></div>';return;
+    $('myShiftsList').innerHTML='<div style="text-align:center;padding:40px;color:var(--text2)"><span style="font-size:40px;display:block;margin-bottom:10px">📅</span><p>אין משמרות רלוונטיות'+(_showAllMyShifts?'':' השבוע')+'</p></div>';return;
   }
   if(!_av[emp.id])_av[emp.id]={};
   $('myShiftsList').innerHTML=shifts.map(s=>{
@@ -1263,6 +1273,7 @@ function startStopwatch(swId,empId,shiftId){
 
 // MY HOURS
 $('refreshShiftsBtn').addEventListener('click',()=>renderMyShifts());
+$('toggleHistoryBtn').addEventListener('click',()=>{_showAllMyShifts=!_showAllMyShifts;renderMyShifts();});
 $('myHoursWeekBtn').addEventListener('click',()=>renderMyHours('week'));
 $('myHoursMonthBtn').addEventListener('click',()=>renderMyHours('month'));
 function renderMyHours(period){
