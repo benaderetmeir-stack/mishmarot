@@ -503,6 +503,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
 <div class="modal"><h3>⚠️ חריגה ממכסה</h3><p id="overQuotaMsg" style="color:var(--text2);font-size:14px;line-height:1.7"></p><div class="modal-footer"><button class="bs bg2" id="cancelOQBtn">ביטול</button><button class="bs ba" id="confirmOQBtn">אישור בכל זאת</button></div></div>
 </div>
 
+<div class="modal-overlay" id="issueModal">
+<div class="modal" style="width:380px"><h3 style="color:var(--red)">🔴 דיווח מהעובד</h3><p id="issueMsg" style="color:var(--text2);font-size:14px;line-height:1.7"></p><div class="modal-footer"><button class="bs bg2" id="closeIssueBtn">סגור</button><button class="bs bd" id="resolveIssueBtn">סמן כטופל / הוסר</button></div></div>
+</div>
+
 <div class="modal-overlay" id="spontModal">
 <div class="modal">
   <h3>⚡ שיבוץ ספונטני</h3>
@@ -752,12 +756,13 @@ function renderTodayWidget(){
 }
 
 function renderDashSummary(){
-  const shifts=_shifts;
   const today=new Date();today.setHours(0,0,0,0);
   const sun=new Date(today);sun.setDate(today.getDate()-today.getDay());
   const sat=new Date(sun);sat.setDate(sun.getDate()+6);
+  const sunIso=sun.toISOString().slice(0,10),satIso=sat.toISOString().slice(0,10);
+  const shifts=_shifts.filter(s=>s.date>=sunIso&&s.date<=satIso);
   $('weekLabel').textContent=sun.getDate()+'/'+(sun.getMonth()+1)+' – '+sat.getDate()+'/'+(sat.getMonth()+1);
-  if(!shifts.length){$('dashSummary').innerHTML='<p style="color:var(--text2)">אין משמרות</p>';return;}
+  if(!shifts.length){$('dashSummary').innerHTML='<p style="color:var(--text2)">אין משמרות השבוע</p>';return;}
   const sorted=shifts.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
   let rows='';
   sorted.forEach(s=>{
@@ -1024,9 +1029,12 @@ document.addEventListener('click',async function(e){
   const addShiftBtn=e.target.closest('.add-shift-btn');if(addShiftBtn){e.stopPropagation();addShift(addShiftBtn.dataset.date);}
   const toggleDay=e.target.closest('.toggle-day');if(toggleDay){const t=document.getElementById(toggleDay.dataset.target);if(t)t.style.display=t.style.display==='none'?'':'none';}
   const toggleApprov=e.target.closest('.toggle-approval-btn');if(toggleApprov)await toggleApproval(toggleApprov.dataset.sid,toggleApprov.dataset.role,toggleApprov.dataset.eid,toggleApprov.dataset.needed);
+  const viBtn=e.target.closest('.view-issue-btn');if(viBtn)openIssueModal(viBtn.dataset.eid,viBtn.dataset.sid,viBtn.dataset.ename);
   const cavBtn=e.target.closest('.cancel-avail-btn');if(cavBtn)await cancelAvail(cavBtn.dataset.eid,cavBtn.dataset.sid);
+  const cspBtn=e.target.closest('.cancel-spont-btn');if(cspBtn)await cancelSpontaneous(cspBtn.dataset.eid,cspBtn.dataset.sid);
   const yBtn=e.target.closest('.avail-yes-btn');if(yBtn)await setAvail(yBtn.dataset.eid,yBtn.dataset.sid,'yes');
   const nBtn=e.target.closest('.avail-no-btn');if(nBtn)await setAvail(nBtn.dataset.eid,nBtn.dataset.sid,'no');
+  const riBtn=e.target.closest('.report-issue-btn');if(riBtn)await reportIssue(riBtn.dataset.eid,riBtn.dataset.sid);
   const ciBtn=e.target.closest('.clock-in-btn');
   if(ciBtn){
     const shift=_shifts.find(s=>s.id===ciBtn.dataset.sid);if(!shift)return;
@@ -1116,6 +1124,7 @@ async function confirmShift(id){
 async function addShift(date){const id=genId(),s={id,date,name:'בוקר',start:'08:00',end:'16:00',needs:{}};RK.forEach(r=>s.needs[r]=0);await fbSet('shifts',id,s);loadWeek();toast('משמרת נוספה');}
 $('cancelDelShiftBtn').addEventListener('click',()=>closeModal('confirmDelShift'));
 $('confirmDelShiftBtn').addEventListener('click',async()=>{if(_pendDelShift){await fbDel('shifts',_pendDelShift);await fbDel('confirmed',_pendDelShift);}closeModal('confirmDelShift');loadWeek();toast('משמרת נמחקה','error');});
+$('closeIssueBtn').addEventListener('click',()=>closeModal('issueModal'));
 
 // APPROVE
 $('loadApproveBtn').addEventListener('click',loadApproveWeek);
@@ -1135,14 +1144,14 @@ function loadApproveWeek(){
       const appIds=(_ap[s.id][role]||[]).filter(id=>activeIds2.has(id)),appCnt=appIds.length;
       const isOver=appCnt>needed,isOk=appCnt>=needed;
       rolesHtml+='<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;color:var(--text2)">'+ROLES[role]+'</span><span style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:1px 7px;font-size:10px;color:var(--text2)">נדרש: '+needed+'</span><span style="border-radius:20px;padding:1px 7px;font-size:10px;font-weight:700;background:'+(isOver?'rgba(196,95,10,0.12)':isOk?'rgba(45,122,58,0.12)':'rgba(139,105,20,0.12)')+';color:'+(isOver?'var(--orange)':isOk?'var(--green)':'var(--accent)')+'">מאושר: '+appCnt+(isOver?' ⚠️':'')+'</span></div>';
-      rolesHtml+='<div style="display:flex;flex-wrap:wrap;gap:4px">'+(avEmps.length?avEmps.map(e=>{const app=appIds.includes(e.id);return'<div style="display:inline-flex;align-items:center;gap:4px"><div class="worker-chip toggle-approval-btn '+(app?'approved':'')+'" data-sid="'+s.id+'" data-role="'+role+'" data-eid="'+e.id+'" data-needed="'+needed+'"><span style="font-weight:600">'+e.name+(e.senior?' ⭐':'')+'</span></div><button class="cancel-avail-btn" data-eid="'+e.id+'" data-sid="'+s.id+'" style="padding:3px 6px;border:1px solid rgba(192,57,43,0.3);background:rgba(192,57,43,0.08);color:var(--red);border-radius:5px;cursor:pointer;font-size:10px;font-weight:700">✕</button></div>';}).join(''):'<span style="color:var(--text2);font-size:12px">אין עובדים זמינים</span>')+'</div></div>';
+      rolesHtml+='<div style="display:flex;flex-wrap:wrap;gap:4px">'+(avEmps.length?avEmps.map(e=>{const app=appIds.includes(e.id);const hasIssue=!!_ap[s.id]?._issues?.[e.id];return'<div style="display:inline-flex;align-items:center;gap:4px"><div class="worker-chip toggle-approval-btn '+(app?'approved':'')+'" data-sid="'+s.id+'" data-role="'+role+'" data-eid="'+e.id+'" data-needed="'+needed+'"><span style="font-weight:600">'+e.name+(e.senior?' ⭐':'')+'</span></div>'+(hasIssue?'<button class="view-issue-btn" data-eid="'+e.id+'" data-sid="'+s.id+'" data-ename="'+e.name+'" title="העובד דיווח שאינו יכול להגיע" style="width:14px;height:14px;border-radius:50%;background:var(--red);border:none;cursor:pointer;padding:0"></button>':'')+'<button class="cancel-avail-btn" data-eid="'+e.id+'" data-sid="'+s.id+'" style="padding:3px 6px;border:1px solid rgba(192,57,43,0.3);background:rgba(192,57,43,0.08);color:var(--red);border-radius:5px;cursor:pointer;font-size:10px;font-weight:700">✕</button></div>';}).join(''):'<span style="color:var(--text2);font-size:12px">אין עובדים זמינים</span>')+'</div></div>';
     });
     // Show spontaneously assigned employees
     const spontIds2=Object.values(_ap[s.id]||{}).filter(v=>Array.isArray(v))[0]?(_ap[s.id]?._spont||[]):[];
     const spontEmps2=activeEmps().filter(e=>(_ap[s.id]?._spont||[]).includes(e.id));
     if(spontEmps2.length>0){
       rolesHtml+='<div style="margin-bottom:10px"><span style="font-size:11px;font-weight:700;color:var(--orange)">⚡ ספונטני: </span>';
-      spontEmps2.forEach(e=>{rolesHtml+='<span class="worker-chip approved" style="cursor:default">'+e.name+' ('+( ROLES[e.role]||e.role)+')</span>';});
+      spontEmps2.forEach(e=>{rolesHtml+='<div style="display:inline-flex;align-items:center;gap:4px"><span class="worker-chip approved" style="cursor:default">'+e.name+' ('+( ROLES[e.role]||e.role)+')</span><button class="cancel-spont-btn" data-eid="'+e.id+'" data-sid="'+s.id+'" style="padding:3px 6px;border:1px solid rgba(192,57,43,0.3);background:rgba(192,57,43,0.08);color:var(--red);border-radius:5px;cursor:pointer;font-size:10px;font-weight:700">✕</button></div>';});
       rolesHtml+='</div>';
     }
     if(!rolesHtml)rolesHtml='<p style="color:var(--text2);font-size:13px">לא הוגדרו דרישות</p>';
@@ -1170,11 +1179,35 @@ async function toggleApproval(shiftId,role,empId,needed){
   }
   loadApproveWeek();
 }
+function openIssueModal(empId,shiftId,empName){
+  const issue=_ap[shiftId]?._issues?.[empId];
+  const timeStr=issue?.time?new Date(issue.time).toLocaleString('he-IL'):'';
+  $('issueMsg').innerHTML='<strong>'+empName+'</strong> דיווח שאינו יכול להגיע למשמרת זו.'+(timeStr?'<br><span style="font-size:12px;color:var(--text2)">דווח בתאריך: '+timeStr+'</span>':'');
+  $('resolveIssueBtn').onclick=async()=>{
+    if(_ap[shiftId]?._issues)delete _ap[shiftId]._issues[empId];
+    await fbSet('approvals',shiftId,_ap[shiftId]);
+    closeModal('issueModal');loadApproveWeek();toast('הדיווח סומן כטופל');
+  };
+  openModal('issueModal');
+}
 async function cancelAvail(empId,shiftId){
   if(!_av[empId])return;_av[empId][shiftId]='no';await fbSet('availability',empId,_av[empId]);
   if(_ap[shiftId]){let ch=false;RK.forEach(r=>{const a=_ap[shiftId][r]||[],i=a.indexOf(empId);if(i!==-1){a.splice(i,1);ch=true;}});if(ch)await fbSet('approvals',shiftId,_ap[shiftId]);}
   const emp=_emps.find(e=>e.id===empId),shift=_shifts.find(s=>s.id===shiftId);
   toast('זמינות '+(emp?.name||'')+' בוטלה','error');
+  if(emp&&shift)showWaModal([{label:emp.name,phone:emp.phone,msg:waCancelMsg(emp,shift)}]);
+  loadApproveWeek();
+}
+async function cancelSpontaneous(empId,shiftId){
+  if(!_ap[shiftId])return;
+  if(Array.isArray(_ap[shiftId]._spont)){
+    const i=_ap[shiftId]._spont.indexOf(empId);
+    if(i!==-1)_ap[shiftId]._spont.splice(i,1);
+  }
+  RK.forEach(r=>{const a=_ap[shiftId][r]||[],i=a.indexOf(empId);if(i!==-1)a.splice(i,1);});
+  await fbSet('approvals',shiftId,_ap[shiftId]);
+  const emp=_emps.find(e=>e.id===empId),shift=_shifts.find(s=>s.id===shiftId);
+  toast('שיבוץ ספונטני של '+(emp?.name||'')+' בוטל','error');
   if(emp&&shift)showWaModal([{label:emp.name,phone:emp.phone,msg:waCancelMsg(emp,shift)}]);
   loadApproveWeek();
 }
@@ -1253,12 +1286,22 @@ function renderMyShifts(){
       } else if(!isPast&&s.date>today){clockHtml+='<div style="font-size:11px;color:var(--text2);margin-top:8px">⏳ כניסה אפשרית ביום המשמרת</div>';}
     }
     const availBtns=!appHere&&!blocked&&!isPast?'<div style="display:flex;gap:6px;margin-top:10px"><button class="avail-btn yes '+(val==='yes'?'active':'')+' avail-yes-btn" data-eid="'+emp.id+'" data-sid="'+s.id+'">זמין ✓</button><button class="avail-btn no '+(val==='no'?'active':'')+' avail-no-btn" data-eid="'+emp.id+'" data-sid="'+s.id+'">לא זמין ✗</button></div>':'';
+    const issueFlag=_ap[s.id]?._issues?.[emp.id];
+    const issueBtn=(appHere&&!isPast)?'<div style="margin-top:8px">'+(issueFlag?'<span style="font-size:11px;color:var(--red)">🔴 המנהל קיבל את ההודעה שלך</span>':'<button class="bs bg2 report-issue-btn" data-eid="'+emp.id+'" data-sid="'+s.id+'" style="padding:5px 10px;font-size:11px">לא יכול להגיע למשמרת</button>')+'</div>':'';
     const pastLbl=isPast&&!appHere?'<div style="font-size:11px;color:var(--text2);margin-top:6px;padding:5px 10px;background:var(--surface2);border-radius:6px">📅 משמרת עברה</div>':'';
     const blockedHtml=blocked?'<div style="margin-top:8px;padding:7px 12px;border-radius:8px;background:rgba(139,105,20,0.08);border:1px solid rgba(139,105,20,0.25);font-size:12px;color:var(--accent)">🔒 מאויש – '+blockedBy+'</div>':'';
-    return'<div class="ms-card"'+(isPast?' style="opacity:.75"':'')+'><div class="ms-top"><div class="ms-info"><h4>'+fmtDate(s.date)+' – '+(s.name||'')+'</h4><p>'+s.start+' – '+s.end+' | '+ROLES[emp.role]+(isSen?' ⭐':'')+'</p></div>'+statusEl+'</div>'+availBtns+blockedHtml+pastLbl+clockHtml+'</div>';
+    return'<div class="ms-card"'+(isPast?' style="opacity:.75"':'')+'><div class="ms-top"><div class="ms-info"><h4>'+fmtDate(s.date)+' – '+(s.name||'')+'</h4><p>'+s.start+' – '+s.end+' | '+ROLES[emp.role]+(isSen?' ⭐':'')+'</p></div>'+statusEl+'</div>'+availBtns+issueBtn+blockedHtml+pastLbl+clockHtml+'</div>';
   }).join('');
 }
 async function setAvail(empId,shiftId,val){if(!_av[empId])_av[empId]={};_av[empId][shiftId]=val;await fbSet('availability',empId,_av[empId]);renderMyShifts();toast(val==='yes'?'נרשמת כזמין ✓':'נרשמת כלא זמין');}
+async function reportIssue(empId,shiftId){
+  if(!_ap[shiftId])_ap[shiftId]={};
+  if(!_ap[shiftId]._issues)_ap[shiftId]._issues={};
+  _ap[shiftId]._issues[empId]={time:Date.now()};
+  await fbSet('approvals',shiftId,_ap[shiftId]);
+  renderMyShifts();
+  toast('ההודעה נשלחה למנהל','error');
+}
 function startStopwatch(swId,empId,shiftId){
   if(stopwatchTimers[swId])clearInterval(stopwatchTimers[swId]);
   stopwatchTimers[swId]=setInterval(()=>{
