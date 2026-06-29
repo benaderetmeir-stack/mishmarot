@@ -719,7 +719,7 @@ $('oldEmpsHeader').addEventListener('click',()=>{$('oldEmpsBody').classList.togg
 // DASHBOARD
 function renderDashboard(){
   const emps=activeEmps(),shifts=_shifts;
-  const ta=Object.values(_ap).reduce((s,m)=>s+Object.values(m).reduce((s2,a)=>s2+a.length,0),0);
+  const ta=Object.values(_ap).reduce((s,m)=>s+Object.values(m).reduce((s2,a)=>s2+(Array.isArray(a)?a.length:0),0),0);
   const full=shifts.filter(s=>isShiftFull(s)).length;
   $('statsRow').innerHTML='<div class="stat-card"><div class="stat-num">'+emps.length+'</div><div class="stat-label">עובדים פעילים</div></div><div class="stat-card"><div class="stat-num">'+shifts.length+'</div><div class="stat-label">משמרות</div></div><div class="stat-card"><div class="stat-num">'+ta+'</div><div class="stat-label">שיבוצים</div></div><div class="stat-card"><div class="stat-num">'+full+'</div><div class="stat-label">משמרות מלאות</div></div>';
   const counts={};RK.forEach(r=>counts[r]=0);emps.forEach(e=>{if(counts[e.role]!==undefined)counts[e.role]++;});
@@ -739,7 +739,7 @@ function renderTodayWidget(){
   if(!ts.length){el.innerHTML='<p style="color:var(--text2);font-size:13px">אין משמרות היום</p>';return;}
   let html='';
   ts.forEach(s=>{
-    const appEmps=activeEmps().filter(e=>Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(e.id))||getCkEntries(e.id,s.id).length>0);
+    const appEmps=activeEmps().filter(e=>Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(e.id))||getCkEntries(e.id,s.id).length>0);
     html+='<div style="margin-bottom:14px"><div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:6px;border-right:3px solid var(--accent)"><span style="font-weight:800;color:var(--accent)">'+(s.name||'')+'</span><span style="font-size:12px;color:var(--text2)">'+s.start+'–'+s.end+'</span><span style="font-size:12px;color:var(--text2);margin-right:auto">'+appEmps.length+' עובדים</span></div>';
     appEmps.forEach(e=>{
       const entries=getCkEntries(e.id,s.id);const inNow=isCurrentlyIn(e.id,s.id);
@@ -791,7 +791,7 @@ function renderEmpWeekSummary(){
   let rows='';
   sorted.forEach(emp=>{
     let cnt=0,mins=0,actualMins=0;
-    ws.forEach(s=>{const app=Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id));if(app){cnt++;mins+=shiftMins(s);actualMins+=calcActualMins(emp.id,s.id);}});
+    ws.forEach(s=>{const app=Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id));if(app){cnt++;mins+=shiftMins(s);actualMins+=calcActualMins(emp.id,s.id);}});
     if(cnt===0)return;
     rows+='<tr class="emp-week-row" data-empid="'+emp.id+'" style="cursor:pointer"><td><strong>'+emp.name+(emp.senior?' ⭐':'')+'</strong></td><td>'+roleBadge(emp.role)+'</td><td style="text-align:center">'+cnt+'</td><td style="text-align:center;color:var(--accent)">'+(mins>0?fmtMins(mins):'—')+'</td><td style="text-align:center;color:var(--green)">'+(actualMins>0?fmtMins(actualMins):'—')+'</td></tr>';
   });
@@ -880,7 +880,7 @@ function openEmpProfile(id){
   const now=new Date();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
   const monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().slice(0,10);
-  const appShifts=_shifts.filter(s=>Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))&&s.date>=monthStart&&s.date<=monthEnd).sort((a,b)=>a.date.localeCompare(b.date));
+  const appShifts=_shifts.filter(s=>Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id))&&s.date>=monthStart&&s.date<=monthEnd).sort((a,b)=>a.date.localeCompare(b.date));
   $('profileShifts').innerHTML=appShifts.length?appShifts.map(s=>{const mins=calcActualMins(emp.id,s.id);return'<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+fmtDate(s.date)+' – '+(s.name||'')+'</span><span style="color:var(--text2)">'+s.start+'–'+s.end+(mins>0?' | '+fmtMins(mins):'')+'</span></div>';}).join(''):'<p style="color:var(--text2);font-size:13px">אין משמרות מאושרות</p>';
   openModal('empProfileModal');
 }
@@ -1250,7 +1250,7 @@ let _showAllMyShifts=false;
 function renderMyShifts(){
   const emp=CU.emp;
   const today=localIso(new Date());
-  let shifts=_shifts.filter(s=>(s.needs?.[emp.role]||0)>0||Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))).sort((a,b)=>a.date.localeCompare(b.date));
+  let shifts=_shifts.filter(s=>(s.needs?.[emp.role]||0)>0||Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id))).sort((a,b)=>a.date.localeCompare(b.date));
   if(!_showAllMyShifts){
     const now=new Date();
     const sun=new Date(now);sun.setDate(now.getDate()-now.getDay());
@@ -1265,7 +1265,7 @@ function renderMyShifts(){
   if(!_av[emp.id])_av[emp.id]={};
   $('myShiftsList').innerHTML=shifts.map(s=>{
     const val=_av[emp.id][s.id]||'none';
-    const appHere=Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id));
+    const appHere=Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id));
     const isPast=s.date<today;
     const isSen=emp.senior===1,senN=s.seniors?.[emp.role]||0;
     let blocked=false,blockedBy='';
@@ -1335,7 +1335,7 @@ function renderMyHours(period){
   const emp=CU.emp;const now=new Date();now.setHours(0,0,0,0);
   let from,to=new Date(now);to.setDate(to.getDate()+1);
   if(period==='week'){from=new Date(now);from.setDate(now.getDate()-now.getDay());}else{from=new Date(now.getFullYear(),now.getMonth(),1);}
-  const myShifts=_shifts.filter(s=>{const d=new Date(s.date);return d>=from&&d<to&&Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id));}).sort((a,b)=>a.date.localeCompare(b.date));
+  const myShifts=_shifts.filter(s=>{const d=new Date(s.date);return d>=from&&d<to&&Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id));}).sort((a,b)=>a.date.localeCompare(b.date));
   // Add manual entries not linked to shifts
   Object.entries(_ck).forEach(([key,val])=>{
     const parts=key.split('_manual_');
@@ -1421,7 +1421,7 @@ function genHoursReport(){
   emps.forEach(emp=>{
     // Include shifts where emp is approved OR has clock entries
     const myS=shifts.filter(s=>
-      Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))||
+      Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id))||
       getCkEntries(emp.id,s.id).length>0
     );
     // Add manual entries (no shift on that day)
@@ -1452,11 +1452,11 @@ function genShiftsReport(){
   const from=new Date($('repFrom').value),to=new Date($('repTo').value);to.setDate(to.getDate()+1);
   const filtEmp=$('repEmp').value,filtEmpObj=filtEmp?_emps.find(e=>e.id===filtEmp):null;
   let shifts=_shifts.filter(s=>{const d=new Date(s.date);return d>=from&&d<to;}).sort((a,b)=>a.date.localeCompare(b.date));
-  if(filtEmp)shifts=shifts.filter(s=>Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(filtEmp)));
+  if(filtEmp)shifts=shifts.filter(s=>Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(filtEmp)));
   if(!shifts.length){$('reportOutput').innerHTML='<p style="color:var(--text2);text-align:center;padding:20px">אין משמרות לתקופה זו</p>';return;}
   const isMob=window.innerWidth<=680;let content='';
   shifts.forEach(s=>{
-    const appE=filtEmp?_emps.filter(e=>e.id===filtEmp&&Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(e.id))):_emps.filter(e=>Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(e.id)));
+    const appE=filtEmp?_emps.filter(e=>e.id===filtEmp&&Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(e.id))):_emps.filter(e=>Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(e.id)));
     const full=isShiftFull(s);const names=appE.map(e=>e.name+' ('+(ROLES[e.role]||e.role)+')').join(', ')||'—';
     content+=isMob?'<div class="rep-card" style="border-right:3px solid '+(full?'var(--green)':'var(--red)')+'"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><div><strong>'+fmtDate(s.date)+'</strong> – <span style="color:var(--accent);font-weight:700">'+(s.name||'')+'</span></div><span class="pill '+(full?'pill-ok':'pill-no')+'">'+(full?'✅':'⚠️')+'</span></div><div style="font-size:12px;color:var(--text2);margin-bottom:6px">⏰ '+s.start+'–'+s.end+' | '+appE.length+' עובדים</div><div style="font-size:12px">'+names+'</div></div>':'<tr><td>'+fmtDate(s.date)+'</td><td style="color:var(--accent);font-weight:600">'+(s.name||'')+'</td><td>'+s.start+'–'+s.end+'</td><td style="text-align:center">'+appE.length+'</td><td style="font-size:12px">'+names+'</td><td><span class="pill '+(full?'pill-ok':'pill-no')+'">'+(full?'✅ סגורה':'⚠️ פתוחה')+'</span></td></tr>';
   });
