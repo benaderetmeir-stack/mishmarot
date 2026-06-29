@@ -504,7 +504,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
 </div>
 
 <div class="modal-overlay" id="issueModal">
-<div class="modal" style="width:380px"><h3 style="color:var(--red)">🔴 דיווח מהעובד</h3><p id="issueMsg" style="color:var(--text2);font-size:14px;line-height:1.7"></p><div class="modal-footer"><button class="bs bg2" id="closeIssueBtn">סגור</button><button class="bs bd" id="resolveIssueBtn">סמן כטופל / הוסר</button></div></div>
+<div class="modal" style="width:380px"><h3 style="color:var(--red)">🔴 דיווח מהעובד</h3><p id="issueMsg" style="color:var(--text2);font-size:14px;line-height:1.7"></p><p style="color:var(--text2);font-size:12px;margin-top:10px">ניתן להוריד את העובד מהמשמרת באמצעות כפתור ה-✕ ברשימת העובדים.</p><div class="modal-footer"><button class="bs bg2" id="closeIssueBtn">סגור</button></div></div>
 </div>
 
 <div class="modal-overlay" id="spontModal">
@@ -620,6 +620,7 @@ function startListeners(){
 function genCode(){return Math.floor(10000+Math.random()*89999).toString();}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function genQrCode(){return 'QR-'+Math.random().toString(36).slice(2,10).toUpperCase();}
+function localIso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function fmtDate(iso){const d=new Date(iso);return DAYS[d.getDay()]+' '+d.getDate()+'/'+(d.getMonth()+1);}
 function fmtTime(ts){if(!ts)return'—';const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
 function roleBadge(r){const i=RK.indexOf(r);return'<span class="badge br'+i+'">'+(ROLES[r]||r)+'</span>';}
@@ -759,7 +760,7 @@ function renderDashSummary(){
   const today=new Date();today.setHours(0,0,0,0);
   const sun=new Date(today);sun.setDate(today.getDate()-today.getDay());
   const sat=new Date(sun);sat.setDate(sun.getDate()+6);
-  const sunIso=sun.toISOString().slice(0,10),satIso=sat.toISOString().slice(0,10);
+  const sunIso=localIso(sun),satIso=localIso(sat);
   const shifts=_shifts.filter(s=>s.date>=sunIso&&s.date<=satIso);
   $('weekLabel').textContent=sun.getDate()+'/'+(sun.getMonth()+1)+' – '+sat.getDate()+'/'+(sat.getMonth()+1);
   if(!shifts.length){$('dashSummary').innerHTML='<p style="color:var(--text2)">אין משמרות השבוע</p>';return;}
@@ -1183,16 +1184,11 @@ function openIssueModal(empId,shiftId,empName){
   const issue=_ap[shiftId]?._issues?.[empId];
   const timeStr=issue?.time?new Date(issue.time).toLocaleString('he-IL'):'';
   $('issueMsg').innerHTML='<strong>'+empName+'</strong> דיווח שאינו יכול להגיע למשמרת זו.'+(timeStr?'<br><span style="font-size:12px;color:var(--text2)">דווח בתאריך: '+timeStr+'</span>':'');
-  $('resolveIssueBtn').onclick=async()=>{
-    if(_ap[shiftId]?._issues)delete _ap[shiftId]._issues[empId];
-    await fbSet('approvals',shiftId,_ap[shiftId]);
-    closeModal('issueModal');loadApproveWeek();toast('הדיווח סומן כטופל');
-  };
   openModal('issueModal');
 }
 async function cancelAvail(empId,shiftId){
   if(!_av[empId])return;_av[empId][shiftId]='no';await fbSet('availability',empId,_av[empId]);
-  if(_ap[shiftId]){let ch=false;RK.forEach(r=>{const a=_ap[shiftId][r]||[],i=a.indexOf(empId);if(i!==-1){a.splice(i,1);ch=true;}});if(ch)await fbSet('approvals',shiftId,_ap[shiftId]);}
+  if(_ap[shiftId]){let ch=false;RK.forEach(r=>{const a=_ap[shiftId][r]||[],i=a.indexOf(empId);if(i!==-1){a.splice(i,1);ch=true;}});if(_ap[shiftId]._issues&&_ap[shiftId]._issues[empId]){delete _ap[shiftId]._issues[empId];ch=true;}if(ch)await fbSet('approvals',shiftId,_ap[shiftId]);}
   const emp=_emps.find(e=>e.id===empId),shift=_shifts.find(s=>s.id===shiftId);
   toast('זמינות '+(emp?.name||'')+' בוטלה','error');
   if(emp&&shift)showWaModal([{label:emp.name,phone:emp.phone,msg:waCancelMsg(emp,shift)}]);
@@ -1248,13 +1244,13 @@ async function doSpont(){
 let _showAllMyShifts=false;
 function renderMyShifts(){
   const emp=CU.emp;
-  const today=new Date().toISOString().slice(0,10);
+  const today=localIso(new Date());
   let shifts=_shifts.filter(s=>(s.needs?.[emp.role]||0)>0||Object.entries(_ap[s.id]||{}).some(([,ids])=>ids.includes(emp.id))).sort((a,b)=>a.date.localeCompare(b.date));
   if(!_showAllMyShifts){
     const now=new Date();
     const sun=new Date(now);sun.setDate(now.getDate()-now.getDay());
     const sat=new Date(sun);sat.setDate(sun.getDate()+6);
-    const weekStartIso=sun.toISOString().slice(0,10),weekEndIso=sat.toISOString().slice(0,10);
+    const weekStartIso=localIso(sun),weekEndIso=localIso(sat);
     shifts=shifts.filter(s=>s.date>=weekStartIso&&s.date<=weekEndIso);
   }
   $('toggleHistoryBtn').textContent=_showAllMyShifts?'📅 הצג שבוע נוכחי':'📅 הצג היסטוריה';
