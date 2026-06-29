@@ -761,17 +761,22 @@ function renderDashSummary(){
   const sun=new Date(today);sun.setDate(today.getDate()-today.getDay());
   const sat=new Date(sun);sat.setDate(sun.getDate()+6);
   const sunIso=localIso(sun),satIso=localIso(sat);
-  const shifts=_shifts.filter(s=>s.date>=sunIso&&s.date<=satIso);
   $('weekLabel').textContent=sun.getDate()+'/'+(sun.getMonth()+1)+' – '+sat.getDate()+'/'+(sat.getMonth()+1);
-  if(!shifts.length){$('dashSummary').innerHTML='<p style="color:var(--text2)">אין משמרות השבוע</p>';return;}
-  const sorted=shifts.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+  const weekDates=Array.from({length:7},(_,i)=>{const d=new Date(sun);d.setDate(sun.getDate()+i);return localIso(d);});
   let rows='';
-  sorted.forEach(s=>{
-    const full=isShiftFull(s),anyN=RK.some(r=>(s.needs?.[r]||0)>0);
-    const ta=RK.reduce((sum,r)=>sum+(_ap[s.id]?.[r]||[]).length,0);
-    const tn=RK.reduce((sum,r)=>sum+(s.needs?.[r]||0),0);
-    let rm='';RK.forEach(r=>{const n=s.needs?.[r]||0;if(!n)return;const a=(_ap[s.id]?.[r]||[]).length;rm+='<span class="rm '+(a>=n?'rm-ok':'rm-no')+'">'+ROLES[r].slice(0,2)+' '+a+'/'+n+'</span>';});
-    rows+='<tr><td><strong class="goto-approve-link" data-date="'+s.date+'" style="cursor:pointer;color:var(--blue)">'+fmtDate(s.date)+'</strong></td><td style="color:var(--accent);font-weight:700">'+(s.name||'—')+'</td><td style="font-size:12px;color:var(--text2)">'+s.start+'–'+s.end+'</td><td>'+rm+'</td><td style="text-align:center;font-weight:700;color:'+(ta>=tn?'var(--green)':'var(--red)')+'">'+( anyN?ta+'/'+tn:'—')+'</td><td>'+(anyN?'<span class="pill '+(full?'pill-ok':'pill-no')+'">'+(full?'✅':'⚠️')+'</span>':'—')+'</td></tr>';
+  weekDates.forEach(dateIso=>{
+    const dayShifts=_shifts.filter(s=>s.date===dateIso).sort((a,b)=>a.start.localeCompare(b.start));
+    if(!dayShifts.length){
+      rows+='<tr><td><strong class="goto-approve-link" data-date="'+dateIso+'" style="cursor:pointer;color:var(--blue)">'+fmtDate(dateIso)+'</strong></td><td colspan="5" style="color:var(--text2);font-size:12px">אין משמרות</td></tr>';
+      return;
+    }
+    dayShifts.forEach((s,idx)=>{
+      const full=isShiftFull(s),anyN=RK.some(r=>(s.needs?.[r]||0)>0);
+      const ta=RK.reduce((sum,r)=>sum+(_ap[s.id]?.[r]||[]).length,0);
+      const tn=RK.reduce((sum,r)=>sum+(s.needs?.[r]||0),0);
+      let rm='';RK.forEach(r=>{const n=s.needs?.[r]||0;if(!n)return;const a=(_ap[s.id]?.[r]||[]).length;rm+='<span class="rm '+(a>=n?'rm-ok':'rm-no')+'">'+ROLES[r].slice(0,2)+' '+a+'/'+n+'</span>';});
+      rows+='<tr><td>'+(idx===0?'<strong class="goto-approve-link" data-date="'+dateIso+'" style="cursor:pointer;color:var(--blue)">'+fmtDate(dateIso)+'</strong>':'')+'</td><td style="color:var(--accent);font-weight:700">'+(s.name||'—')+'</td><td style="font-size:12px;color:var(--text2)">'+s.start+'–'+s.end+'</td><td>'+rm+'</td><td style="text-align:center;font-weight:700;color:'+(ta>=tn?'var(--green)':'var(--red)')+'">'+( anyN?ta+'/'+tn:'—')+'</td><td>'+(anyN?'<span class="pill '+(full?'pill-ok':'pill-no')+'">'+(full?'✅':'⚠️')+'</span>':'—')+'</td></tr>';
+    });
   });
   $('dashSummary').innerHTML='<table class="sum-table" style="min-width:460px"><thead><tr><th>יום</th><th>משמרת</th><th>שעות</th><th>תפקידים</th><th style="text-align:center">סה"כ</th><th>סטטוס</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
@@ -1289,7 +1294,18 @@ function renderMyShifts(){
     return'<div class="ms-card"'+(isPast?' style="opacity:.75"':'')+'><div class="ms-top"><div class="ms-info"><h4>'+fmtDate(s.date)+' – '+(s.name||'')+'</h4><p>'+s.start+' – '+s.end+' | '+ROLES[emp.role]+(isSen?' ⭐':'')+'</p></div>'+statusEl+'</div>'+availBtns+issueBtn+blockedHtml+pastLbl+clockHtml+'</div>';
   }).join('');
 }
-async function setAvail(empId,shiftId,val){if(!_av[empId])_av[empId]={};_av[empId][shiftId]=val;await fbSet('availability',empId,_av[empId]);renderMyShifts();toast(val==='yes'?'נרשמת כזמין ✓':'נרשמת כלא זמין');}
+async function setAvail(empId,shiftId,val){
+  try{
+    if(!_av[empId])_av[empId]={};
+    _av[empId][shiftId]=val;
+    await fbSet('availability',empId,_av[empId]);
+    renderMyShifts();
+    toast(val==='yes'?'נרשמת כזמין ✓':'נרשמת כלא זמין');
+  }catch(err){
+    toast('שגיאה בשמירה: '+err.message,'error');
+    console.error('setAvail error:',err);
+  }
+}
 async function reportIssue(empId,shiftId){
   if(!_ap[shiftId])_ap[shiftId]={};
   if(!_ap[shiftId]._issues)_ap[shiftId]._issues={};
