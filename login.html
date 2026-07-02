@@ -102,7 +102,7 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail,signInAnonymously}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getFirestore,doc,setDoc,getDoc,collection,query,where,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
@@ -110,6 +110,13 @@ const app=initializeApp(FC);
 const auth=getAuth(app);
 const db=getFirestore(app);
 const $=id=>document.getElementById(id);
+
+// Ensure there is always a valid Firebase Auth session before any Firestore call.
+// This lets the security rules require "must be signed in" without breaking
+// the employee flow (which never uses email/password login).
+// If the user is a manager, signInWithEmailAndPassword below will replace this
+// anonymous session with their real one automatically.
+const _authReady = signInAnonymously(auth).catch(()=>{});
 
 // TABS
 $('tabManager').addEventListener('click',()=>{
@@ -156,6 +163,7 @@ $('loginBtn').addEventListener('click',async()=>{
   if(!email||!pass){$('loginErr').textContent='נא למלא אימייל וסיסמה';return;}
   showLoading(true);
   try{
+    await _authReady;
     const cred=await signInWithEmailAndPassword(auth,email,pass);
     const uid=cred.user.uid;
     const snap=await getDoc(doc(db,'businesses',uid));
@@ -192,9 +200,22 @@ $('registerBtn').addEventListener('click',async()=>{
   if(pass!==pass2){$('registerErr').textContent='הסיסמאות לא תואמות';return;}
   showLoading(true);
   try{
+    await _authReady;
+    // Generate a business code that is guaranteed unique (checked against existing businesses)
+    let bCode;
+    let attempts=0;
+    while(attempts<20){
+      const candidate=String(Math.floor(1000+Math.random()*9000));
+      const existing=await getDocs(query(collection(db,'businesses'),where('businessCode','==',candidate)));
+      if(existing.empty){bCode=candidate;break;}
+      attempts++;
+    }
+    if(!bCode){
+      $('registerErr').textContent='שגיאה זמנית ביצירת קוד עסק, נסי שוב';
+      showLoading(false);return;
+    }
     const cred=await createUserWithEmailAndPassword(auth,email,pass);
     const uid=cred.user.uid;
-    const bCode=String(Math.floor(1000+Math.random()*9000));
     const businessData={name:business,email,uid,businessCode:bCode,createdAt:Date.now(),createdDate:new Date().toISOString().slice(0,10),active:true};
     await setDoc(doc(db,'businesses',uid),businessData);
     localStorage.setItem('mishmarot_uid',uid);
@@ -226,6 +247,7 @@ $('employeeBtn').addEventListener('click',async()=>{
   if(!businessCode||!personalCode){$('employeeErr').textContent='נא למלא קוד עסק וקוד אישי';return;}
   showLoading(true);
   try{
+    await _authReady;
     const bSnap=await getDocs(query(collection(db,'businesses'),where('businessCode','==',businessCode)));
     if(bSnap.empty){$('employeeErr').textContent='קוד עסק לא נמצא';showLoading(false);return;}
     const businessDoc=bSnap.docs[0];
