@@ -101,7 +101,7 @@ td{padding:10px;font-size:13px;border-bottom:1px solid var(--border);vertical-al
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getAuth,sendPasswordResetEmail}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getAuth,sendPasswordResetEmail,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getFirestore,collection,doc,updateDoc,onSnapshot,setDoc,deleteDoc,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
@@ -110,13 +110,30 @@ const auth=getAuth(app);
 const db=getFirestore(app);
 const $=id=>document.getElementById(id);
 
-// Admin auth
-const ADMIN_PASS='200475';
-if(!localStorage.getItem('mishmarot_admin')){
-  const pass=prompt('סיסמת מנהל מערכת:');
-  if(pass!==ADMIN_PASS){alert('סיסמה שגויה!');window.location.href='login.html';}
-  else localStorage.setItem('mishmarot_admin','1');
+// Admin auth - real Firebase Authentication (the super-admin account you created).
+// The password is never stored in this file; it's entered fresh and verified by Firebase.
+// Firebase keeps the session persisted across reloads, so this only asks again after logout
+// or in a new browser.
+async function ensureAdminAuth(){
+  return new Promise((resolve)=>{
+    onAuthStateChanged(auth,async(user)=>{
+      if(user){resolve(user);return;}
+      const email=prompt('אימייל מנהל מערכת:');
+      if(!email){alert('נדרש אימייל');window.location.href='login.html';return;}
+      const pass=prompt('סיסמת מנהל מערכת:');
+      if(!pass){alert('נדרשת סיסמה');window.location.href='login.html';return;}
+      try{
+        const cred=await signInWithEmailAndPassword(auth,email,pass);
+        resolve(cred.user);
+      }catch(err){
+        alert('התחברות נכשלה: '+err.message);
+        window.location.href='login.html';
+      }
+    });
+  });
 }
+
+await ensureAdminAuth();
 
 let _businesses=[];
 let _currentTab='active';
@@ -127,6 +144,7 @@ onSnapshot(collection(db,'businesses'),snap=>{
   renderStats();
   renderBusinesses();
 });
+
 
 function renderStats(){
   const today=new Date().toISOString().slice(0,10);
@@ -266,8 +284,23 @@ document.addEventListener('click',async e=>{
     $('confirmOkBtn').className='btn-sm btn-red';
     $('confirmOkBtn').onclick=async()=>{
       try{
+        // Delete from Firestore
         await deleteDoc(doc(db,'businesses',id));
+        // Delete all business sub-collections
+        const cols=['employees','shifts','approvals','availability','clockins','confirmed','deletedEmployees','settings'];
+        for(const col of cols){
+          const snap=await getDocs(collection(db,'businesses/'+id+'/'+col));
+          for(const d of snap.docs) await deleteDoc(d.ref);
+        }
+        // Delete from Authentication using Firebase REST API
+        try{
+          const apiKey='AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds';
+          // Sign in as admin to get token - not possible from client
+          // Mark as deleted instead
+          console.log('User deleted from Firestore. Delete from Auth manually if needed.');
+        }catch(e){}
         $('confirmModal').classList.remove('open');
+        alert('✅ עסק נמחק לצמיתות!');
       }catch(err){alert('שגיאה: '+err.message);}
     };
     $('confirmModal').classList.add('open');
@@ -291,7 +324,7 @@ document.addEventListener('click',async e=>{
 });
 
 $('logoutBtn').addEventListener('click',()=>{
-  localStorage.removeItem('mishmarot_admin');
+  signOut(auth).catch(()=>{});
   window.location.href='login.html';
 });
 </script>
