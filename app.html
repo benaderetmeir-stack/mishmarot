@@ -149,7 +149,9 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
   #_printDiv button{display:none!important;}
 }
 @media(max-width:680px){
-  .topbar-greeting{display:none;}
+  .topbar{height:auto;min-height:56px;flex-wrap:wrap;padding:8px 12px;}
+  .topbar-greeting{display:block!important;font-size:11px!important;}
+  .topbar-info-stack{align-items:flex-start!important;}
   .topbar-logo{font-size:14px;}
   .stats-row{grid-template-columns:1fr 1fr;gap:8px;}
   .grid-2{grid-template-columns:1fr;}
@@ -189,7 +191,13 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
   </svg>
   משמרות
 </span><span class="sync-dot"></span></div>
-  <div style="display:flex;align-items:center;gap:8px"><span id="businessCodeDisplay" style="font-size:11px;color:var(--accent);font-weight:700;background:rgba(139,105,20,0.1);padding:3px 8px;border-radius:6px;cursor:pointer" title="קוד לעובדים"></span><span class="topbar-greeting" style="font-size:12px;color:var(--text2)">שלום, <button id="topbarName" style="font-weight:600;cursor:pointer;text-decoration:underline;color:var(--accent);background:none;border:none;font-family:Heebo,sans-serif;font-size:14px;padding:4px 8px;border-radius:6px">—</button></span><button class="btn-logout" id="refreshBtn" title="רענן">🔄</button><button class="btn-logout" id="adminSettingsTopBtn" title="הגדרות" style="font-size:16px">⚙️</button><button class="btn-logout" id="logoutBtn">יציאה</button></div>
+  <div style="display:flex;align-items:center;gap:8px" class="topbar-info-stack">
+    <div style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.35">
+      <span id="topbarBizName" style="font-size:12px;font-weight:700;color:var(--accent)"></span>
+      <div style="display:flex;align-items:center;gap:8px"><span id="businessCodeDisplay" style="font-size:11px;color:var(--accent);font-weight:700;background:rgba(139,105,20,0.1);padding:3px 8px;border-radius:6px;cursor:pointer" title="קוד לעובדים"></span><span class="topbar-greeting" style="font-size:12px;color:var(--text2)">שלום, <button id="topbarName" style="font-weight:600;cursor:pointer;text-decoration:underline;color:var(--accent);background:none;border:none;font-family:Heebo,sans-serif;font-size:14px;padding:4px 8px;border-radius:6px">—</button></span></div>
+    </div>
+    <button class="btn-logout" id="refreshBtn" title="רענן">🔄</button><button class="btn-logout" id="adminSettingsTopBtn" title="הגדרות" style="font-size:16px">⚙️</button><button class="btn-logout" id="logoutBtn">יציאה</button>
+  </div>
 </div>
 <div id="mgrNav" style="background:var(--surface);border-bottom:2px solid var(--border);display:none">
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0">
@@ -349,9 +357,10 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
 <div id="panel-myhours" class="panel">
   <div class="card">
     <div class="card-title">⏱️ שעות שלי</div>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
       <button class="bs bg2" id="myHoursWeekBtn">השבוע</button>
       <button class="bs bg2" id="myHoursMonthBtn">החודש</button>
+      <input type="month" id="myHoursMonthPicker" class="bs" style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-family:Heebo,sans-serif" title="בחר/י חודש אחר"/>
     </div>
     <div id="myHoursList"></div>
   </div>
@@ -660,7 +669,8 @@ function doLogin(){
 }
 function enterApp(name){
   $('loginScreen').classList.remove('active');$('appScreen').classList.add('active');
-  $('topbarName').textContent=CU?.type==='manager'?(_businessData.name||_adminUser):name;
+  $('topbarBizName').textContent=_businessData.name||'';
+  $('topbarName').textContent=CU?.type==='manager'?_adminUser:name;
   // Show business code for manager
   if(CU?.type==='manager'&&_businessData.businessCode){
     const codeEl=document.getElementById('businessCodeDisplay');
@@ -1329,12 +1339,20 @@ function startStopwatch(swId,empId,shiftId){
 // MY HOURS
 $('refreshShiftsBtn').addEventListener('click',()=>renderMyShifts());
 $('toggleHistoryBtn').addEventListener('click',()=>{_showAllMyShifts=!_showAllMyShifts;renderMyShifts();});
-$('myHoursWeekBtn').addEventListener('click',()=>renderMyHours('week'));
-$('myHoursMonthBtn').addEventListener('click',()=>renderMyHours('month'));
+$('myHoursWeekBtn').addEventListener('click',()=>{$('myHoursMonthPicker').value='';renderMyHours('week');});
+$('myHoursMonthBtn').addEventListener('click',()=>{$('myHoursMonthPicker').value='';renderMyHours('month');});
+$('myHoursMonthPicker').addEventListener('change',()=>{
+  if($('myHoursMonthPicker').value)renderMyHours('custom');
+});
 function renderMyHours(period){
   const emp=CU.emp;const now=new Date();now.setHours(0,0,0,0);
   let from,to=new Date(now);to.setDate(to.getDate()+1);
-  if(period==='week'){from=new Date(now);from.setDate(now.getDate()-now.getDay());}else{from=new Date(now.getFullYear(),now.getMonth(),1);}
+  if(period==='week'){from=new Date(now);from.setDate(now.getDate()-now.getDay());}
+  else if(period==='custom'&&$('myHoursMonthPicker').value){
+    const[y,m]=$('myHoursMonthPicker').value.split('-').map(Number);
+    from=new Date(y,m-1,1);to=new Date(y,m,1);
+  }
+  else{from=new Date(now.getFullYear(),now.getMonth(),1);}
   const myShifts=_shifts.filter(s=>{const d=new Date(s.date);return d>=from&&d<to&&Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id));}).sort((a,b)=>a.date.localeCompare(b.date));
   // Add manual entries not linked to shifts
   Object.entries(_ck).forEach(([key,val])=>{
@@ -1350,8 +1368,10 @@ function renderMyHours(period){
   let totalPlan=0,totalAct=0,rows='';
   myShifts.forEach(s=>{
     const planned=shiftMins(s),actual=calcActualMins(emp.id,s.id);totalPlan+=planned;totalAct+=actual;
-    const entries=getCkEntries(emp.id,s.id);const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?fmtTime(e2.out):'בפנים')).join(', ')||'—';
-    rows+='<tr><td>'+fmtDate(s.date)+'</td><td style="color:var(--accent);font-weight:600">'+(s.name||'')+'</td><td style="text-align:center">'+fmtMins(planned)+'</td><td style="text-align:center;color:var(--green);font-weight:700">'+(actual>0?fmtMins(actual):'—')+'</td><td style="font-size:11px;color:var(--text2)">'+entryStr+'</td></tr>';
+    const openNow=isCurrentlyIn(emp.id,s.id);
+    const entries=getCkEntries(emp.id,s.id);const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?fmtTime(e2.out):'<span style="color:var(--red);font-weight:700">בפנים ⚠️</span>')).join(', ')||'—';
+    const actualCell=openNow?'<span style="color:var(--red);font-weight:700" title="שכחת לסמן יציאה ממשמרת זו">⚠️ לא נרשמה יציאה</span>':(actual>0?fmtMins(actual):'—');
+    rows+='<tr><td>'+fmtDate(s.date)+'</td><td style="color:var(--accent);font-weight:600">'+(s.name||'')+'</td><td style="text-align:center">'+fmtMins(planned)+'</td><td style="text-align:center;color:var(--green);font-weight:700">'+actualCell+'</td><td style="font-size:11px;color:var(--text2)">'+entryStr+'</td></tr>';
   });
   if(!rows){$('myHoursList').innerHTML='<p style="color:var(--text2);text-align:center;padding:30px">אין נתונים לתקופה זו</p>';return;}
   rows+='<tr style="background:var(--surface2)"><td colspan="2"><strong>סה"כ</strong></td><td style="text-align:center"><strong>'+fmtMins(totalPlan)+'</strong></td><td style="text-align:center;color:var(--green)"><strong>'+(totalAct>0?fmtMins(totalAct):'—')+'</strong></td><td></td></tr>';
@@ -1361,12 +1381,14 @@ function renderMyHours(period){
     let cardsHtml='';
     myShifts.forEach(s=>{
       const planned=shiftMins(s),actual=calcActualMins(emp.id,s.id);
+      const openNow=isCurrentlyIn(emp.id,s.id);
       const entries=getCkEntries(emp.id,s.id);
-      const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?fmtTime(e2.out):'בפנים')).join(', ')||'—';
+      const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?fmtTime(e2.out):'<span style="color:var(--red);font-weight:700">בפנים ⚠️</span>')).join(', ')||'—';
+      const actualCell=openNow?'<span style="color:var(--red);font-weight:700">⚠️ לא נרשמה יציאה</span>':(actual>0?'בפועל: '+fmtMins(actual):'—');
       cardsHtml+='<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">';
       cardsHtml+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
       cardsHtml+='<div><div style="font-weight:700;font-size:13px">'+fmtDate(s.date)+'</div><div style="font-size:12px;color:var(--accent);">'+(s.name||'')+'</div></div>';
-      cardsHtml+='<div style="text-align:left"><div style="font-size:12px;color:var(--text2)">מתוכנן: '+fmtMins(planned)+'</div><div style="font-size:13px;color:var(--green);font-weight:700">'+(actual>0?'בפועל: '+fmtMins(actual):'—')+'</div></div></div>';
+      cardsHtml+='<div style="text-align:left"><div style="font-size:12px;color:var(--text2)">מתוכנן: '+fmtMins(planned)+'</div><div style="font-size:13px;color:var(--green);font-weight:700">'+actualCell+'</div></div></div>';
       if(entryStr!=='—')cardsHtml+='<div style="font-size:11px;color:var(--text2)">'+entryStr+'</div>';
       cardsHtml+='</div>';
     });
@@ -1438,8 +1460,10 @@ function genHoursReport(){
     myS.forEach(s=>{
       const entries=getCkEntries(emp.id,s.id),actual=calcActualMins(emp.id,s.id);if(!entries.length)return;
       hasAny=true;empTotal+=actual;grand+=actual;
-      const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?fmtTime(e2.out):'בפנים')).join(', ');
-      rows+=isMob?'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+fmtDate(s.date)+' '+(s.name||'')+'<br><span style="font-size:11px;color:var(--text2)">'+entryStr+'</span></span><span style="color:var(--green);font-weight:700">'+fmtMins(actual)+'</span></div>':'<tr><td>'+fmtDate(s.date)+'</td><td>'+(s.name||'')+'</td><td style="font-size:11px;color:var(--text2)">'+entryStr+'</td><td style="text-align:center;color:var(--green);font-weight:700">'+fmtMins(actual)+'</td></tr>';
+      const openNow=isCurrentlyIn(emp.id,s.id);
+      const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?fmtTime(e2.out):'<span style="color:var(--red);font-weight:700">בפנים ⚠️</span>')).join(', ');
+      const hoursCell=openNow?'<span style="color:var(--red);font-weight:700" title="העובד/ת לא סימן/ה יציאה ממשמרת זו">⚠️ לא נרשמה יציאה</span>'+(actual>0?' ('+fmtMins(actual)+')':''):fmtMins(actual);
+      rows+=isMob?'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+fmtDate(s.date)+' '+(s.name||'')+'<br><span style="font-size:11px;color:var(--text2)">'+entryStr+'</span></span><span style="color:var(--green);font-weight:700">'+hoursCell+'</span></div>':'<tr><td>'+fmtDate(s.date)+'</td><td>'+(s.name||'')+'</td><td style="font-size:11px;color:var(--text2)">'+entryStr+'</td><td style="text-align:center;color:var(--green);font-weight:700">'+hoursCell+'</td></tr>';
     });
     if(!hasAny)return;
     content+=isMob?'<div class="rep-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div><strong style="font-size:14px">'+emp.name+'</strong><div style="font-size:11px;color:var(--text2)">'+(ROLES[emp.role]||emp.role)+(emp.archived?' (ישן)':'')+'</div></div><span style="font-weight:800;color:var(--accent);font-size:16px">'+fmtMins(empTotal)+'</span></div>'+rows+'</div>':'<tr style="background:var(--surface2)"><td colspan="3" style="font-weight:700;color:var(--accent)"><strong>'+emp.name+'</strong> – '+(ROLES[emp.role]||emp.role)+(emp.archived?' <span style="color:var(--text2);font-size:11px">(ישן)</span>':'')+'</td><td style="text-align:center;font-weight:700;color:var(--accent)">'+fmtMins(empTotal)+'</td></tr>'+rows;
