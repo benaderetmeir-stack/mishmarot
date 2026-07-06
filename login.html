@@ -102,13 +102,15 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail,signInAnonymously}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail,signInAnonymously,signInWithCustomToken}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getFirestore,doc,setDoc,getDoc,collection,query,where,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFunctions,httpsCallable}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
 const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
 const app=initializeApp(FC);
 const auth=getAuth(app);
 const db=getFirestore(app);
+const functions=getFunctions(app);
 const $=id=>document.getElementById(id);
 
 // Ensure there is always a valid Firebase Auth session before any Firestore call.
@@ -247,24 +249,22 @@ $('employeeBtn').addEventListener('click',async()=>{
   if(!businessCode||!personalCode){$('employeeErr').textContent='נא למלא קוד עסק וקוד אישי';return;}
   showLoading(true);
   try{
-    await _authReady;
-    const bSnap=await getDocs(query(collection(db,'businesses'),where('businessCode','==',businessCode)));
-    if(bSnap.empty){$('employeeErr').textContent='קוד עסק לא נמצא';showLoading(false);return;}
-    const businessDoc=bSnap.docs[0];
-    const businessId=businessDoc.id;
-    const businessData=businessDoc.data();
-    if(businessData.active===false){$('employeeErr').textContent='עסק לא פעיל';showLoading(false);return;}
-    const empSnap=await getDocs(query(collection(db,'businesses/'+businessId+'/employees'),where('code','==',personalCode)));
-    if(empSnap.empty){$('employeeErr').textContent='קוד אישי לא נמצא';showLoading(false);return;}
-    const emp={id:empSnap.docs[0].id,...empSnap.docs[0].data()};
-    if(emp.archived){$('employeeErr').textContent='עובד לא פעיל';showLoading(false);return;}
+    const verify=httpsCallable(functions,'verifyEmployeeLogin');
+    const result=await verify({businessCode,personalCode});
+    const{token,businessId,businessData,employee}=result.data;
+    await signInWithCustomToken(auth,token);
     localStorage.setItem('mishmarot_uid',businessId);
     localStorage.setItem('mishmarot_business',JSON.stringify(businessData));
-    localStorage.setItem('mishmarot_emp',JSON.stringify(emp));
+    localStorage.setItem('mishmarot_emp',JSON.stringify(employee));
     window.location.href='app.html';
   }catch(err){
     showLoading(false);
-    $('employeeErr').textContent='שגיאה: '+err.message;
+    const msg=(err.details&&err.details.message)||err.message||'';
+    if(msg.includes('קוד עסק')||msg.includes('קוד אישי')||msg.includes('לא פעיל')){
+      $('employeeErr').textContent=msg;
+    }else{
+      $('employeeErr').textContent='שגיאה: '+msg;
+    }
   }
 });
 
