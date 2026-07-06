@@ -1,23 +1,31 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
+const {v1} = require("@google-cloud/firestore");
+
 admin.initializeApp();
 const db = admin.firestore();
 
-/**
- * Server-side "reception desk" for employee login.
- *
- * The client sends a businessCode + personalCode (exactly what the employee
- * types into login.html today). This function verifies both against
- * Firestore using the Admin SDK (which is trusted and bypasses security
- * rules - that's expected and safe, because this code runs on Google's
- * servers, not in the visitor's browser).
- *
- * If valid, it mints a Firebase Auth custom token carrying a custom claim
- * "businessId" tied to that specific business. The client then signs in
- * with that token (signInWithCustomToken), giving the employee session a
- * real, verifiable identity that Firestore security rules can check -
- * instead of today's anonymous session that has no link to any business.
- */
+const PROJECT_ID = "mishmarot-2506e";
+const BACKUP_BUCKET = "gs://mishmarot-2506e-backup";
+
+// ============================================================
+// verifyEmployeeLogin
+// ------------------------------------------------------------
+// Server-side "reception desk" for employee login.
+//
+// The client sends a businessCode + personalCode (exactly what the
+// employee types into login.html today). This function verifies both
+// against Firestore using the Admin SDK (which is trusted and bypasses
+// security rules - that's expected and safe, because this code runs on
+// Google's servers, not in the visitor's browser).
+//
+// If valid, it mints a Firebase Auth custom token carrying a custom claim
+// "businessId" tied to that specific business. The client then signs in
+// with that token (signInWithCustomToken), giving the employee session a
+// real, verifiable identity that Firestore security rules can check -
+// instead of an anonymous session that has no link to any business.
+// ============================================================
 exports.verifyEmployeeLogin = onCall(async (request) => {
   const businessCode = (request.data && request.data.businessCode || "").trim();
   const personalCode = (request.data && request.data.personalCode || "").trim();
@@ -62,8 +70,8 @@ exports.verifyEmployeeLogin = onCall(async (request) => {
     throw new HttpsError("permission-denied", "עובד לא פעיל");
   }
 
-  // 3. Mint a scoped custom token. The synthetic uid is namespaced so it can
-  // never collide with a manager's real Firebase Auth uid.
+  // 3. Mint a scoped custom token. The synthetic uid is namespaced so it
+  // can never collide with a manager's real Firebase Auth uid.
   const uid = "emp_" + businessId + "_" + empDoc.id;
   const customToken = await admin.auth().createCustomToken(uid, {
     businessId: businessId,
@@ -78,3 +86,36 @@ exports.verifyEmployeeLogin = onCall(async (request) => {
     employee: {id: empDoc.id, ...empData},
   };
 });
+
+// ============================================================
+// scheduledFirestoreBackup
+// ------------------------------------------------------------
+// Runs automatically every day at 03:00 Israel time. Exports the entire
+// Firestore database to Cloud Storage - exactly like the manual
+// "gcloud firestore export" command, just automatic.
+//
+// Each day gets its own dated folder (auto-backup-YYYY-MM-DD), so old
+// backups are never overwritten or deleted by this function.
+// ============================================================
+const firestoreAdminClient = new v1.FirestoreAdminClient();
+
+exports.scheduledFirestoreBackup = onSchedule(
+    {
+      schedule: "0 3 * * *",
+      timeZone: "Asia/Jerusalem",
+      retryCount: 2,
+    },
+    async (event) => {
+      const today = new Date().toISOString().slice(0, 10);
+      const databaseName =
+        firestoreAdminClient.databasePath(PROJECT_ID, "(default)");
+
+      await firestoreAdminClient.exportDocuments({
+        name: databaseName,
+        outputUriPrefix: `${BACKUP_BUCKET}/auto-backup-${today}`,
+        collectionIds: [], // empty = export all collections
+      });
+
+      console.log(`Scheduled Firestore backup started for ${today}`);
+    },
+);
