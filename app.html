@@ -553,12 +553,12 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
 <div class="toast" id="toast"></div>
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import{initializeAppCheck,ReCaptchaV3Provider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
+import{initializeAppCheck,ReCaptchaEnterpriseProvider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 import{getFirestore,collection,doc,getDoc,setDoc,deleteDoc,onSnapshot,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import{getAuth,signOut,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
 const _fbApp=initializeApp(FC);
-initializeAppCheck(_fbApp,{provider:new ReCaptchaV3Provider('6LdbFEotAAAAAEMnJrsryKE9WpytV8RAIZ2DnyjP'),isTokenAutoRefreshEnabled:true});
+initializeAppCheck(_fbApp,{provider:new ReCaptchaEnterpriseProvider('6LdbFEotAAAAAEMnJrsryKE9WpytV8RAIZ2DnyjP'),isTokenAutoRefreshEnabled:true});
 const db=getFirestore(_fbApp);
 const auth=getAuth();
 let _businessId=localStorage.getItem('mishmarot_uid')||null;
