@@ -586,8 +586,8 @@ let _pendDelShift=null,_pendOQ=null,_pendingArchiveEmpId=null,_pendingPermDelEmp
 let stopwatchTimers={},_qrCode=null,_html5QrScanner=null,_scanPending=null;
 let _prevNeeds={};
 const $=id=>document.getElementById(id);
-async function fbSet(c,id,d){if(_readOnlyAdminView){toast('🔍 מצב צפייה בלבד - לא ניתן לשמור שינויים','error');return;}await setDoc(bd(c,id),d);}
-async function fbDel(c,id){if(_readOnlyAdminView){toast('🔍 מצב צפייה בלבד - לא ניתן למחוק','error');return;}await deleteDoc(bd(c,id));}
+async function fbSet(c,id,d){if(_readOnlyAdminView){toast('🔍 מצב צפייה בלבד - לא ניתן לשמור שינויים','error');throw new Error('מצב צפייה בלבד - השינוי לא נשמר');}await setDoc(bd(c,id),d);}
+async function fbDel(c,id){if(_readOnlyAdminView){toast('🔍 מצב צפייה בלבד - לא ניתן למחוק','error');throw new Error('מצב צפייה בלבד - הפעולה לא בוצעה');}await deleteDoc(bd(c,id));}
 async function loadCustomRoles(){
   try{
     const snap=await getDoc(bd('settings','customRoles'));
