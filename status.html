@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>משמרות – מצב המערכת</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f0e8;--surface:#fffdf7;--surface2:#f0e8d8;--border:#d4c4a0;--accent:#8b6914;--text:#2c1f0a;--text2:#7a6540;--green:#2d7a3a;--red:#c0392b;--orange:#c45f0a;--radius:12px;--shadow:0 4px 20px rgba(139,105,20,0.15);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e8ddc8);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:440px;max-width:95vw;box-shadow:var(--shadow);text-align:center;}
+.logo h1{font-size:24px;font-weight:900;color:var(--accent);margin-bottom:4px;}
+.logo p{font-size:13px;color:var(--text2);margin-bottom:28px;}
+.status-badge{display:flex;align-items:center;justify-content:center;gap:10px;padding:20px;border-radius:14px;margin-bottom:20px;}
+.dot{width:16px;height:16px;border-radius:50%;flex:0 0 auto;}
+.dot.green{background:var(--green);box-shadow:0 0 0 6px rgba(45,122,58,0.15);}
+.dot.red{background:var(--red);box-shadow:0 0 0 6px rgba(192,57,43,0.15);}
+.dot.gray{background:#9a9a9a;box-shadow:0 0 0 6px rgba(154,154,154,0.15);}
+.status-badge.ok{background:rgba(45,122,58,0.08);}
+.status-badge.bad{background:rgba(192,57,43,0.08);}
+.status-badge.unknown{background:var(--surface2);}
+.status-text{font-size:17px;font-weight:800;}
+.status-text.ok{color:var(--green);}
+.status-text.bad{color:var(--red);}
+.status-text.unknown{color:var(--text2);}
+.detail-row{display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--border);font-size:13px;}
+.detail-row:last-child{border-bottom:none;}
+.detail-row span:first-child{color:var(--text2);}
+.detail-row span:last-child{font-weight:700;}
+.backlink{display:inline-block;margin-top:22px;font-size:12px;color:var(--text2);text-decoration:underline;}
+.note{font-size:11px;color:var(--text2);margin-top:16px;line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <h1>משמרות</h1>
+    <p>מצב המערכת</p>
+  </div>
+
+  <div id="statusBadge" class="status-badge unknown">
+    <div class="dot gray" id="statusDot"></div>
+    <div class="status-text unknown" id="statusText">בודק...</div>
+  </div>
+
+  <div id="details" style="display:none">
+    <div class="detail-row"><span>גיבוי אחרון שהצליח</span><span id="lastBackupDate">—</span></div>
+    <div class="detail-row"><span>נבדק כרגע</span><span id="checkedAt">—</span></div>
+  </div>
+
+  <div class="note">עמוד זה בודק אוטומטית שהגיבוי היומי של המערכת רץ בהצלחה. אם משהו נראה לא תקין, אפשר לפנות אלינו ישירות.</div>
+
+  <a class="backlink" href="login.html">← חזרה למסך הכניסה</a>
+</div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getFirestore,doc,getDoc}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
+const app=initializeApp(FC);
+const db=getFirestore(app);
+const $=id=>document.getElementById(id);
+
+function setBadge(kind,text){
+  const badge=$('statusBadge'),dot=$('statusDot'),txt=$('statusText');
+  badge.className='status-badge '+kind;
+  dot.className='dot '+(kind==='ok'?'green':kind==='bad'?'red':'gray');
+  txt.className='status-text '+kind;
+  txt.textContent=text;
+}
+
+function fmtDateTime(d){
+  return d.toLocaleString('he-IL',{dateStyle:'medium',timeStyle:'short'});
+}
+
+(async()=>{
+  $('checkedAt').textContent=fmtDateTime(new Date());
+  try{
+    const snap=await getDoc(doc(db,'system','status'));
+    if(!snap.exists()){
+      setBadge('unknown','אין עדיין נתוני מצב');
+      return;
+    }
+    const data=snap.data();
+    $('details').style.display='block';
+    $('lastBackupDate').textContent=data.lastBackupDate||'—';
+
+    const backupAt=data.lastBackupAt&&data.lastBackupAt.toDate?data.lastBackupAt.toDate():null;
+    const hoursSince=backupAt?(Date.now()-backupAt.getTime())/3600000:Infinity;
+
+    if(data.lastBackupOk&&hoursSince<30){
+      setBadge('ok','המערכת פעילה - הגיבוי היומי תקין');
+    }else if(data.lastBackupOk===false){
+      setBadge('bad','הגיבוי האחרון נכשל - נדרשת בדיקה');
+    }else if(hoursSince>=30){
+      setBadge('bad','הגיבוי היומי לא רץ בזמן - נדרשת בדיקה');
+    }else{
+      setBadge('unknown','לא ניתן לקבוע מצב במדויק');
+    }
+  }catch(err){
+    setBadge('bad','לא ניתן להתחבר למערכת כרגע');
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
