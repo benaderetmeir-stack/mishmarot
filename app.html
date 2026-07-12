@@ -1471,7 +1471,7 @@ function renderMyHours(period){
     from=new Date(y,m-1,1);to=new Date(y,m,1);
   }
   else{from=new Date(now.getFullYear(),now.getMonth(),1);}
-  const myShifts=_shifts.filter(s=>{const d=new Date(s.date);return d>=from&&d<to&&Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id));}).sort((a,b)=>a.date.localeCompare(b.date));
+  const myShifts=_shifts.filter(s=>{const d=new Date(s.date);return d>=from&&d<to&&(Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id))||getCkEntries(emp.id,s.id).length>0);}).sort((a,b)=>a.date.localeCompare(b.date));
   // Add manual entries not linked to shifts
   Object.entries(_ck).forEach(([key,val])=>{
     const parts=key.split('_manual_');
