@@ -122,7 +122,12 @@ const $=id=>document.getElementById(id);
 // or in a new browser.
 async function ensureAdminAuth(){
   return new Promise((resolve)=>{
-    onAuthStateChanged(auth,async(user)=>{
+    const unsub=onAuthStateChanged(auth,async(user)=>{
+      unsub(); // only act on the FIRST auth check when the page loads.
+      // Without this, a later signOut() (from clicking "יציאה") would
+      // fire this same listener again and immediately re-prompt for a
+      // password right there on the page, instead of just navigating
+      // away cleanly to login.html like it should.
       if(user){resolve(user);return;}
       const email=prompt('אימייל מנהל מערכת:');
       if(!email){alert('נדרש אימייל');window.location.href='login.html';return;}
