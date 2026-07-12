@@ -139,7 +139,25 @@ async function ensureAdminAuth(){
   });
 }
 
+// Auto-logout after a period of inactivity. This is a powerful panel
+// (can view/archive/delete any business), so it shouldn't stay open
+// indefinitely on an unattended computer even if nobody clicks "logout".
+const ADMIN_IDLE_TIMEOUT_MS=15*60*1000; // 15 minutes
+let _idleTimer=null;
+function resetIdleTimer(){
+  if(_idleTimer)clearTimeout(_idleTimer);
+  _idleTimer=setTimeout(()=>{
+    signOut(auth).catch(()=>{});
+    alert('התנתקת אוטומטית עקב חוסר פעילות (15 דקות). יש להתחבר שוב.');
+    window.location.href='login.html';
+  },ADMIN_IDLE_TIMEOUT_MS);
+}
+['mousemove','keydown','mousedown','touchstart','scroll'].forEach(evt=>{
+  document.addEventListener(evt,resetIdleTimer,{passive:true});
+});
+
 await ensureAdminAuth();
+resetIdleTimer();
 
 let _businesses=[];
 let _currentTab='active';
@@ -337,6 +355,7 @@ document.addEventListener('click',async e=>{
 });
 
 $('logoutBtn').addEventListener('click',()=>{
+  if(_idleTimer)clearTimeout(_idleTimer);
   signOut(auth).catch(()=>{});
   window.location.href='login.html';
 });
