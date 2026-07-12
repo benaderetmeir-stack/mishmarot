@@ -1686,7 +1686,7 @@ function genPayrollReport(){
       fmtHrs(regMins),
       fmtHrs(ot125Mins),
       fmtHrs(ot150Mins),
-      hasRate?('₪'+payTotal.toFixed(0)):'—'
+      hasRate?('₪'+payTotal.toFixed(2)):'—'
     ];
     content+=isMob?
       '<div class="rep-card"><div style="font-weight:700;color:var(--accent);margin-bottom:6px">'+emp.name+'</div>'+
@@ -1695,7 +1695,7 @@ function genPayrollReport(){
       '<span>מחלה: '+(sickDays||0)+'</span><span>אחר: '+(otherDays||0)+'</span>'+
       '<span>סה"כ שעות: '+fmtHrs(totalMins)+'</span><span>רגיל: '+fmtHrs(regMins)+'</span>'+
       '<span>125%: '+fmtHrs(ot125Mins)+'</span><span>150%: '+fmtHrs(ot150Mins)+'</span>'+
-      '</div>'+(hasRate?'<div style="margin-top:6px;font-weight:800;color:var(--accent)">סה"כ לתשלום: ₪'+payTotal.toFixed(0)+'</div>':'')+
+      '</div>'+(hasRate?'<div style="margin-top:6px;font-weight:800;color:var(--accent)">סה"כ לתשלום: ₪'+payTotal.toFixed(2)+'</div>':'')+
       '</div>'
       :'<tr><td style="font-weight:600">'+cells[0]+'</td><td style="text-align:center">'+cells[1]+'</td><td style="text-align:center">'+cells[2]+'</td><td style="text-align:center">'+cells[3]+'</td><td style="text-align:center">'+cells[4]+'</td><td style="text-align:center">'+cells[5]+'</td><td style="text-align:center">'+cells[6]+'</td><td style="text-align:center">'+cells[7]+'</td><td style="text-align:center">'+cells[8]+'</td><td style="text-align:center;font-weight:700;color:var(--accent)">'+cells[9]+'</td></tr>';
   });
