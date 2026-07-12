@@ -634,7 +634,29 @@ function startListeners(){
   onSnapshot(bc('availability'),s=>{_av={};s.docs.forEach(d=>{_av[d.id]=d.data();});if(CU?.type==='employee')renderMyShifts();if(CU?.type==='manager')renderDashboard();});
   onSnapshot(bc('approvals'),s=>{_ap={};s.docs.forEach(d=>{_ap[d.id]=d.data();});if(CU?.type==='employee')renderMyShifts();if(CU?.type==='manager')renderDashboard();});
   onSnapshot(bc('confirmed'),s=>{_cf={};s.docs.forEach(d=>{_cf[d.id]=d.data();});});
-  onSnapshot(bc('clockins'),s=>{_ck={};s.docs.forEach(d=>{_ck[d.id]=d.data();});if(CU?.type==='manager'){renderTodayWidget();renderEmpWeekSummary();}if(CU?.type==='employee')renderMyShifts();});
+let _autoCloseChecked=false;
+async function autoCloseStaleClockins(){
+  if(_autoCloseChecked)return;
+  _autoCloseChecked=true;
+  const THRESHOLD_MS=16*60*60*1000; // 16 hours
+  const now=Date.now();
+  for(const key in _ck){
+    const d=_ck[key];
+    const entries=Array.isArray(d.entries)?d.entries:(d.in?[{in:d.in,out:d.out||null}]:[]);
+    if(!entries.length)continue;
+    const last=entries[entries.length-1];
+    if(last.in&&!last.out&&(now-last.in)>THRESHOLD_MS){
+      // Close it at exactly the 16-hour mark (not "now"), so the reported
+      // duration stays a sane, fixed number instead of ballooning if
+      // nobody opened the app for days. autoClosed:true lets the manager
+      // spot it in reports and review/correct manually if needed.
+      const newEntries=entries.slice(0,-1).concat([{...last,out:last.in+THRESHOLD_MS,autoClosed:true}]);
+      try{await fbSet('clockins',key,{entries:newEntries});}catch(e){console.error('auto-close failed for',key,e);}
+    }
+  }
+}
+
+onSnapshot(bc('clockins'),s=>{_ck={};s.docs.forEach(d=>{_ck[d.id]=d.data();});if(CU?.type==='manager'){autoCloseStaleClockins();renderTodayWidget();renderEmpWeekSummary();}if(CU?.type==='employee')renderMyShifts();});
 }
 function genCode(){return Math.floor(10000+Math.random()*89999).toString();}
 function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
@@ -1497,8 +1519,12 @@ function genHoursReport(){
       const entries=getCkEntries(emp.id,s.id),actual=calcActualMins(emp.id,s.id);if(!entries.length)return;
       hasAny=true;empTotal+=actual;grand+=actual;
       const openNow=isCurrentlyIn(emp.id,s.id);
+      const isLong=actual>=600; // 10+ hours - worth a manager's attention
+      const wasAutoClosed=entries.some(e2=>e2.autoClosed);
       const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?fmtTime(e2.out):'<span style="color:var(--red);font-weight:700">בפנים ⚠️</span>')).join(', ');
-      const hoursCell=openNow?'<span style="color:var(--red);font-weight:700" title="העובד/ת לא סימן/ה יציאה ממשמרת זו">⚠️ לא נרשמה יציאה</span>'+(actual>0?' ('+fmtMins(actual)+')':''):fmtMins(actual);
+      let hoursCell=openNow?'<span style="color:var(--red);font-weight:700" title="העובד/ת לא סימן/ה יציאה ממשמרת זו">⚠️ לא נרשמה יציאה</span>'+(actual>0?' ('+fmtMins(actual)+')':''):fmtMins(actual);
+      if(isLong)hoursCell='<span title="משמרת של 10 שעות ומעלה - כדאי לבדוק" style="color:var(--red)">⭐</span> '+hoursCell;
+      if(wasAutoClosed)hoursCell+=' <span style="color:var(--orange);font-size:10px;font-weight:700" title="המשמרת נסגרה אוטומטית אחרי 16 שעות ללא יציאה - השעות כאן הן הערכה, כדאי לבדוק ולתקן">🔒 נסגר אוטומטית</span>';
       rows+=isMob?'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+fmtDate(s.date)+' '+(s.name||'')+'<br><span style="font-size:11px;color:var(--text2)">'+entryStr+'</span></span><span style="color:var(--green);font-weight:700">'+hoursCell+'</span></div>':'<tr><td>'+fmtDate(s.date)+'</td><td>'+(s.name||'')+'</td><td style="font-size:11px;color:var(--text2)">'+entryStr+'</td><td style="text-align:center;color:var(--green);font-weight:700">'+hoursCell+'</td></tr>';
     });
     if(!hasAny)return;
