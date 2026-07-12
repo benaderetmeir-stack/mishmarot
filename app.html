@@ -941,7 +941,13 @@ async function addProfileClockEntry(){
   const ckKey=empId+'_'+shiftId;
   const existing=_ck[ckKey]||{};
   const entries=Array.isArray(existing.entries)?[...existing.entries]:(existing.in?[{in:existing.in,out:existing.out||null}]:[]);
-  entries.push({in:toTs(inVal),out:toTs(outVal)||null});
+  let inTs=toTs(inVal),outTs=toTs(outVal);
+  // Overnight shift (e.g. 22:00 -> 03:00): the "out" time, anchored to the
+  // same calendar date, would otherwise land BEFORE "in" on that date -
+  // roll it forward to the next day, same assumption shiftMins() already
+  // uses for planned shift duration.
+  if(inTs&&outTs&&outTs<inTs)outTs+=86400000;
+  entries.push({in:inTs,out:outTs||null});
   await fbSet('clockins',ckKey,{entries});
   toast('✅ כניסה נוספה!');renderProfileClockEntries(empId,date);
 }
@@ -992,6 +998,10 @@ document.addEventListener('change',async function(e){
     const existing=_ck[eid+'_'+sid]||{};
     let entries=Array.isArray(existing.entries)?[...existing.entries]:(existing.in?[{in:existing.in,out:existing.out||null}]:[]);
     if(!entries[idx])return;entries[parseInt(idx)][field]=toTs2(e.target.value);
+    // Same overnight assumption as above: if this edit leaves "out" earlier
+    // than "in" on the same calendar date, treat it as landing the next day.
+    const _en=entries[parseInt(idx)];
+    if(_en.in&&_en.out&&_en.out<_en.in)_en.out+=86400000;
     await fbSet('clockins',eid+'_'+sid,{entries});toast('שעה עודכנה ✓');
   }
   const timeInput=e.target.closest('.shift-time-input');
@@ -1316,7 +1326,7 @@ function renderMyShifts(){
         if(totalMins>0)clockHtml+='<div style="font-size:12px;color:var(--green);font-weight:700;margin-top:4px">סה"כ: '+fmtMins(totalMins)+'</div>';
         clockHtml+='</div>';
       }
-      if(isToday){
+      if(isToday||inNow){
         const swId='sw_'+emp.id+'_'+s.id;
         if(inNow){clockHtml+='<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><div class="stopwatch" id="'+swId+'">00:00</div><button class="bs bd scan-clock-btn" data-eid="'+emp.id+'" data-sid="'+s.id+'" data-action="out" style="padding:8px 16px;font-size:13px">🔴 יציאה 📷</button><button class="bs bgr scan-clock-btn" data-eid="'+emp.id+'" data-sid="'+s.id+'" data-action="in" style="padding:8px 16px;font-size:13px">🟢 כניסה נוספת 📷</button></div>';startStopwatch(swId,emp.id,s.id);}
         else{clockHtml+='<div style="margin-top:8px"><button class="bs bgr scan-clock-btn" data-eid="'+emp.id+'" data-sid="'+s.id+'" data-action="in" style="padding:8px 16px;font-size:13px">🟢 '+(entries.length>0?'כניסה נוספת':'כניסה למשמרת')+' 📷</button></div>';}
