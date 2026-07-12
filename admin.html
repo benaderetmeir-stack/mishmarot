@@ -192,6 +192,16 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('focus',checkRealElapsedTime);
 
+// Mobile browsers (especially on the back button / recent-tabs / app-switch)
+// often restore a page from "bfcache" - a frozen snapshot of exactly how it
+// looked before you left, WITHOUT re-running any of this page's code. That
+// snapshot can still show "logged in" even after you clicked logout, since
+// it never re-checks anything. Force a real, fresh reload whenever that
+// happens, so the login check above always runs for real.
+window.addEventListener('pageshow',(e)=>{
+  if(e.persisted)window.location.reload();
+});
+
 await ensureAdminAuth();
 checkRealElapsedTime();
 
