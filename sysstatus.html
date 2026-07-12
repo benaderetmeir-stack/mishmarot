@@ -68,10 +68,16 @@ const $=id=>document.getElementById(id);
 // Smart "back" link: if we arrived from admin.html (or any page on this
 // site) via browser history, go back there. Otherwise (e.g. someone
 // opened this link directly), fall back to the regular login screen.
+// Smart "back" link: this page usually opens in a NEW TAB (from the admin
+// panel's "🟢 מצב מערכת" link), so browser history.back() has nothing to
+// go to within this tab. Instead: if we can tell we came from this site,
+// just close this tab so the tab that opened it (e.g. admin.html) is
+// revealed underneath. Otherwise (opened directly, no opener), fall back
+// to the regular login screen.
 $('backLink').addEventListener('click',(e)=>{
-  if(document.referrer && document.referrer.includes(location.host)){
+  if(window.opener || (document.referrer && document.referrer.includes(location.host))){
     e.preventDefault();
-    history.back();
+    window.close();
   }
   // else: let the default href="login.html" navigation happen
 });
