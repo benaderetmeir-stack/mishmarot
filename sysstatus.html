@@ -56,10 +56,12 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
 
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{initializeAppCheck,ReCaptchaEnterpriseProvider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 import{getFirestore,doc,getDoc}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
 const app=initializeApp(FC);
+initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider('6LdbFEotAAAAAEMnJrsryKE9WpytV8RAIZ2DnyjP'),isTokenAutoRefreshEnabled:true});
 const db=getFirestore(app);
 const $=id=>document.getElementById(id);
 
