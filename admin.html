@@ -120,7 +120,18 @@ const $=id=>document.getElementById(id);
 // The password is never stored in this file; it's entered fresh and verified by Firebase.
 // Firebase keeps the session persisted across reloads, so this only asks again after logout
 // or in a new browser.
+const ADMIN_SIGNED_OUT_KEY='mishmarot_admin_signed_out';
+
 async function ensureAdminAuth(){
+  // Defensive check, independent of Firebase's own state: if we explicitly
+  // logged out before, NEVER trust a resumed/suspended page instance that
+  // still looks "logged in" in memory - always force a fresh credential
+  // prompt. This protects against mobile browsers, "Add to Home Screen"
+  // shortcuts, or back/forward-cache resuming a suspended page instead of
+  // truly reloading it (which would otherwise skip this whole check).
+  if(localStorage.getItem(ADMIN_SIGNED_OUT_KEY)){
+    await signOut(auth).catch(()=>{});
+  }
   return new Promise((resolve)=>{
     const unsub=onAuthStateChanged(auth,async(user)=>{
       unsub(); // only act on the FIRST auth check when the page loads.
@@ -128,13 +139,14 @@ async function ensureAdminAuth(){
       // fire this same listener again and immediately re-prompt for a
       // password right there on the page, instead of just navigating
       // away cleanly to login.html like it should.
-      if(user){resolve(user);return;}
+      if(user && !localStorage.getItem(ADMIN_SIGNED_OUT_KEY)){resolve(user);return;}
       const email=prompt('אימייל מנהל מערכת:');
       if(!email){alert('נדרש אימייל');window.location.href='login.html';return;}
       const pass=prompt('סיסמת מנהל מערכת:');
       if(!pass){alert('נדרשת סיסמה');window.location.href='login.html';return;}
       try{
         const cred=await signInWithEmailAndPassword(auth,email,pass);
+        localStorage.removeItem(ADMIN_SIGNED_OUT_KEY);
         resolve(cred.user);
       }catch(err){
         alert('התחברות נכשלה: '+err.message);
@@ -163,6 +175,7 @@ let _idleTimer=null;
 async function forceIdleLogout(){
   if(_idleTimer)clearTimeout(_idleTimer);
   localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
+  localStorage.setItem(ADMIN_SIGNED_OUT_KEY,'1');
   try{await signOut(auth);}catch(e){}
   alert('התנתקת אוטומטית עקב חוסר פעילות. יש להתחבר שוב.');
   window.location.href='login.html';
@@ -403,6 +416,7 @@ document.addEventListener('click',async e=>{
 $('logoutBtn').addEventListener('click',async()=>{
   if(_idleTimer)clearTimeout(_idleTimer);
   localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
+  localStorage.setItem(ADMIN_SIGNED_OUT_KEY,'1');
   // IMPORTANT: wait for signOut to actually finish before navigating away.
   // On mobile especially, navigating immediately (fire-and-forget) could
   // tear down the page mid-operation before the session was fully cleared
