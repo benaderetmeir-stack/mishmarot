@@ -141,23 +141,54 @@ async function ensureAdminAuth(){
 
 // Auto-logout after a period of inactivity. This is a powerful panel
 // (can view/archive/delete any business), so it shouldn't stay open
-// indefinitely on an unattended computer even if nobody clicks "logout".
+// indefinitely on an unattended computer/phone even if nobody clicks
+// "logout".
+//
+// Two mechanisms, because a plain timer alone isn't reliable on mobile:
+// on a phone, closing the browser app pauses JavaScript entirely, so a
+// setTimeout that hasn't fired yet just never fires - meaning "close the
+// app and come back an hour later" would NOT log you out with a timer
+// alone. To catch that case too, we also stamp the real clock time of the
+// last activity into localStorage, and check the real elapsed time
+// whenever the page becomes visible again (app reopened, tab refocused).
 const ADMIN_IDLE_TIMEOUT_MS=15*60*1000; // 15 minutes
+const ADMIN_LAST_ACTIVITY_KEY='mishmarot_admin_last_activity';
 let _idleTimer=null;
-function resetIdleTimer(){
+
+function forceIdleLogout(){
   if(_idleTimer)clearTimeout(_idleTimer);
-  _idleTimer=setTimeout(()=>{
-    signOut(auth).catch(()=>{});
-    alert('התנתקת אוטומטית עקב חוסר פעילות (15 דקות). יש להתחבר שוב.');
-    window.location.href='login.html';
-  },ADMIN_IDLE_TIMEOUT_MS);
+  localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
+  signOut(auth).catch(()=>{});
+  alert('התנתקת אוטומטית עקב חוסר פעילות. יש להתחבר שוב.');
+  window.location.href='login.html';
 }
+
+function markActivity(){
+  localStorage.setItem(ADMIN_LAST_ACTIVITY_KEY,String(Date.now()));
+  if(_idleTimer)clearTimeout(_idleTimer);
+  _idleTimer=setTimeout(forceIdleLogout,ADMIN_IDLE_TIMEOUT_MS);
+}
+
+function checkRealElapsedTime(){
+  const last=Number(localStorage.getItem(ADMIN_LAST_ACTIVITY_KEY)||0);
+  if(last&&Date.now()-last>ADMIN_IDLE_TIMEOUT_MS){
+    forceIdleLogout();
+  }else{
+    markActivity(); // resets both the stamp and the in-tab timer
+  }
+}
+
 ['mousemove','keydown','mousedown','touchstart','scroll'].forEach(evt=>{
-  document.addEventListener(evt,resetIdleTimer,{passive:true});
+  document.addEventListener(evt,markActivity,{passive:true});
 });
+// Catches: reopening the browser app on mobile, switching back to this tab
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible')checkRealElapsedTime();
+});
+window.addEventListener('focus',checkRealElapsedTime);
 
 await ensureAdminAuth();
-resetIdleTimer();
+checkRealElapsedTime();
 
 let _businesses=[];
 let _currentTab='active';
@@ -356,6 +387,7 @@ document.addEventListener('click',async e=>{
 
 $('logoutBtn').addEventListener('click',()=>{
   if(_idleTimer)clearTimeout(_idleTimer);
+  localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
   signOut(auth).catch(()=>{});
   window.location.href='login.html';
 });
