@@ -322,6 +322,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="bs ba" id="repHoursBtn">📊 שעות עובדים</button>
       <button class="bs bg2" id="repShiftsBtn">📅 דוח משמרות</button>
+      <button class="bs bo" id="repPayrollBtn">💰 דוח משכורות</button>
     </div>
     <div id="reportOutput" style="margin-top:16px"></div>
   </div>
@@ -416,6 +417,7 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
     <div class="fg"><label>טלפון</label><input id="pPhone"/></div>
     <div class="fg"><label>ת"ז</label><input id="pTZ"/></div>
     <div class="fg"><label>תאריך לידה</label><input type="date" id="pBirth"/></div>
+    <div class="fg"><label>תעריף שעתי (₪) - אופציונלי</label><input type="number" min="0" step="0.01" id="pHourlyRate" placeholder="לא חובה"/></div>
   </div>
   <div class="fg" style="margin-top:8px"><label>קוד כניסה</label><div style="display:flex;gap:8px"><input id="pCode" readonly style="flex:1;opacity:.7"/><button class="bs bg2" id="regenCodeBtn">🔄</button></div></div>
   <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
@@ -427,6 +429,21 @@ tr:last-child td{border-bottom:none;}tr:hover td{background:rgba(139,105,20,0.03
       <button class="bs ba" id="addClockEntryBtn">+ הוסף</button>
     </div>
     <div id="profileClockEntries" style="margin-top:10px"></div>
+  </div>
+  <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:10px">🏖️ ימי היעדרות (חופש / מחלה / אחר)</div>
+    <div class="form-row">
+      <div class="fg"><label>סוג</label><select id="absType">
+        <option value="vacation">🏖️ חופש</option>
+        <option value="sick">🤒 מחלה</option>
+        <option value="other">📝 אחר</option>
+      </select></div>
+      <div class="fg"><label>תאריך</label><input type="date" id="absDate"/></div>
+      <div class="fg"><label>מספר ימים</label><input type="number" min="0.5" step="0.5" id="absDays" placeholder="1"/></div>
+    </div>
+    <div class="fg" id="absOtherLabelGroup" style="margin-top:6px"><label>פירוט (עבור "אחר")</label><input id="absOtherLabel" placeholder="למשל: מילואים"/></div>
+    <button class="bs ba" id="addAbsenceBtn" style="width:100%;margin-top:6px">+ הוסף רשומת היעדרות</button>
+    <div id="absenceList" style="margin-top:10px"></div>
   </div>
   <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
     <div style="font-weight:700;font-size:14px;margin-bottom:10px">⚡ שיבוץ ספונטני</div>
@@ -581,7 +598,7 @@ const ROLES={manager:'מנהל משמרת',waiter:'מלצר',line:'עובד פס
 const RK=Object.keys(ROLES);
 const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 const SN=['בוקר','ערב','לילה','צהריים','מיוחד'];
-let CU=null,_emps=[],_shifts=[],_av={},_ap={},_cf={},_ck={};
+let CU=null,_emps=[],_shifts=[],_av={},_ap={},_cf={},_ck={},_absences=[];
 let _pendDelShift=null,_pendOQ=null,_pendingArchiveEmpId=null,_pendingPermDelEmpId=null;
 let stopwatchTimers={},_qrCode=null,_html5QrScanner=null,_scanPending=null;
 let _prevNeeds={};
@@ -634,6 +651,7 @@ function startListeners(){
   onSnapshot(bc('availability'),s=>{_av={};s.docs.forEach(d=>{_av[d.id]=d.data();});if(CU?.type==='employee')renderMyShifts();if(CU?.type==='manager')renderDashboard();});
   onSnapshot(bc('approvals'),s=>{_ap={};s.docs.forEach(d=>{_ap[d.id]=d.data();});if(CU?.type==='employee')renderMyShifts();if(CU?.type==='manager')renderDashboard();});
   onSnapshot(bc('confirmed'),s=>{_cf={};s.docs.forEach(d=>{_cf[d.id]=d.data();});});
+  onSnapshot(bc('absences'),s=>{_absences=s.docs.map(d=>({id:d.id,...d.data()}));if(CU?.type==='manager'&&$('empProfileModal')&&$('empProfileModal').classList.contains('open')){const eid=$('profileEmpId').value;if(eid)renderAbsenceList(eid);}});
 let _autoCloseChecked=false;
 async function autoCloseStaleClockins(){
   if(_autoCloseChecked)return;
@@ -683,6 +701,17 @@ function calcActualMins(eId,sId){
     return t;
   }let t=0;getCkEntries(eId,sId).forEach(e=>{if(e.in&&e.out)t+=Math.round((e.out-e.in)/60000);});return t;}
 function isCurrentlyIn(eId,sId){const e=getCkEntries(eId,sId);if(!e.length)return false;const l=e[e.length-1];return l.in&&!l.out;}
+
+// Overtime tiers per Israeli labor law convention, per shift (not summed
+// across a day): first 8 hours = regular (100%), next 2 hours = 125%,
+// anything beyond that = 150%.
+function tierMinutes(actualMins){
+  const regular=Math.min(actualMins,480);
+  const remaining1=Math.max(0,actualMins-480);
+  const ot125=Math.min(remaining1,120);
+  const ot150=Math.max(0,remaining1-120);
+  return {regular,ot125,ot150};
+}
 function isShiftFull(s){if(!s.needs)return false;const activeIds=new Set(activeEmps().map(e=>e.id));return RK.every(r=>{const n=s.needs[r]||0;if(!n)return true;const approved=(_ap[s.id]?.[r]||[]).filter(id=>activeIds.has(id));return approved.length>=n;});}
 function activeEmps(){return _emps.filter(e=>!e.archived);}
 
@@ -907,6 +936,7 @@ $('closeProfileBtn').addEventListener('click',()=>closeModal('empProfileModal'))
 $('regenCodeBtn').addEventListener('click',()=>$('pCode').value=genCode());
 $('saveProfileBtn').addEventListener('click',saveProfile);
 $('addClockEntryBtn').addEventListener('click',addProfileClockEntry);
+$('addAbsenceBtn').addEventListener('click',addAbsence);
 $('spontFromProfileBtn').addEventListener('click',spontFromProfile);
 $('pClockDate').addEventListener('change',function(){renderProfileClockEntries($('profileEmpId').value,this.value);});
 $('archiveEmpBtn').addEventListener('click',()=>{_pendingArchiveEmpId=$('profileEmpId').value;openModal('confirmArchiveEmpModal');});
@@ -929,9 +959,12 @@ function openEmpProfile(id){
   $('profileEmpId').value=emp.id;$('pName').value=emp.name;$('pRole').value=emp.role;
   $('pSenior').value=emp.senior||0;$('pPhone').value=emp.phone||'';
   $('pTZ').value=emp.tz||'';$('pBirth').value=emp.birth||'';$('pCode').value=emp.code;
+  $('pHourlyRate').value=emp.hourlyRate||'';
   $('pClockDate').max=new Date().toISOString().slice(0,10);
   $('pClockDate').value='';$('pClockIn').value='';$('pClockOut').value='';
   $('profileClockEntries').innerHTML='';
+  $('absDate').value='';$('absDays').value='';$('absOtherLabel').value='';$('absType').value='vacation';
+  renderAbsenceList(emp.id);
   const spontSel=$('pSpontShift');
   spontSel.innerHTML='<option value="">-- ללא --</option>'+_shifts.sort((a,b)=>a.date.localeCompare(b.date)).map(s=>'<option value="'+s.id+'">'+fmtDate(s.date)+' '+(s.name||'')+' '+s.start+'–'+s.end+'</option>').join('');
   // Filter shifts for current month only
@@ -946,11 +979,38 @@ async function saveProfile(){
   const id=$('profileEmpId').value;
   const name=$('pName').value.trim(),role=$('pRole').value,senior=parseInt($('pSenior').value)||0;
   const phone=$('pPhone').value.trim(),tz=$('pTZ').value.trim(),birth=$('pBirth').value,code=$('pCode').value;
+  const hourlyRateVal=$('pHourlyRate').value.trim();
+  const hourlyRate=hourlyRateVal?parseFloat(hourlyRateVal):null;
   if(!name||!phone){toast('נא למלא שם וטלפון','error');return;}
   const emp=_emps.find(e=>e.id===id);
-  await fbSet('employees',id,{...emp,name,role,senior,phone,tz,birth,code});
+  await fbSet('employees',id,{...emp,name,role,senior,phone,tz,birth,code,hourlyRate});
   closeModal('empProfileModal');toast('פרטים עודכנו ✓');
 }
+async function addAbsence(){
+  const empId=$('profileEmpId').value;
+  const type=$('absType').value;
+  const otherLabel=type==='other'?$('absOtherLabel').value.trim():null;
+  const date=$('absDate').value;
+  const days=parseFloat($('absDays').value)||0;
+  if(!date||days<=0){toast('נא למלא תאריך ומספר ימים','error');return;}
+  if(type==='other'&&!otherLabel){toast('נא לפרט את סוג ההיעדרות','error');return;}
+  const id=genId();
+  await fbSet('absences',id,{employeeId:empId,type,otherLabel,date,days,createdAt:Date.now()});
+  $('absDate').value='';$('absDays').value='';$('absOtherLabel').value='';
+  toast('✅ נרשם');
+  renderAbsenceList(empId);
+}
+window.deleteAbsence=async function deleteAbsence(id,empId){
+  await fbDel('absences',id);
+  renderAbsenceList(empId);
+};
+const ABS_LABELS={vacation:'🏖️ חופש',sick:'🤒 מחלה',other:'📝 אחר'};
+function renderAbsenceList(empId){
+  const el=$('absenceList');if(!el)return;
+  const list=_absences.filter(a=>a.employeeId===empId).sort((a,b)=>b.date.localeCompare(a.date));
+  el.innerHTML=list.length?list.map(a=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--surface2);border-radius:7px;margin-bottom:5px;font-size:12px"><span>'+(ABS_LABELS[a.type]||a.type)+(a.type==='other'&&a.otherLabel?' - '+a.otherLabel:'')+' | '+fmtDate(a.date)+' | '+a.days+' ימים</span><button class="bs bd" style="padding:2px 8px;font-size:11px" onclick="deleteAbsence(\''+a.id+'\',\''+empId+'\')">✕</button></div>').join(''):'<p style="color:var(--text2);font-size:12px;padding:6px 0">אין רשומות היעדרות</p>';
+}
+
 async function addProfileClockEntry(){
   const empId=$('profileEmpId').value,date=$('pClockDate').value;
   const inVal=$('pClockIn').value,outVal=$('pClockOut').value;
@@ -1467,12 +1527,20 @@ $('repEmpSearch').addEventListener('input',populateRepEmpSelect);
 $('repHoursBtn').addEventListener('click',()=>{
   $('repHoursBtn').classList.add('ba');$('repHoursBtn').classList.remove('bg2');
   $('repShiftsBtn').classList.remove('ba');$('repShiftsBtn').classList.add('bg2');
+  $('repPayrollBtn').classList.remove('ba');$('repPayrollBtn').classList.add('bo');
   window._lastReport='hours';genHoursReport();
 });
 $('repShiftsBtn').addEventListener('click',()=>{
   $('repShiftsBtn').classList.add('ba');$('repShiftsBtn').classList.remove('bg2');
   $('repHoursBtn').classList.remove('ba');$('repHoursBtn').classList.add('bg2');
+  $('repPayrollBtn').classList.remove('ba');$('repPayrollBtn').classList.add('bo');
   window._lastReport='shifts';genShiftsReport();
+});
+$('repPayrollBtn').addEventListener('click',()=>{
+  $('repPayrollBtn').classList.add('ba');$('repPayrollBtn').classList.remove('bo');
+  $('repHoursBtn').classList.remove('ba');$('repHoursBtn').classList.add('bg2');
+  $('repShiftsBtn').classList.remove('ba');$('repShiftsBtn').classList.add('bg2');
+  window._lastReport='payroll';genPayrollReport();
 });
 function genHoursReport(){
   const from=new Date($('repFrom').value),to=new Date($('repTo').value);to.setDate(to.getDate()+1);
@@ -1549,6 +1617,92 @@ function genShiftsReport(){
   const empTitle=filtEmpObj?' | '+filtEmpObj.name:'';
   const hdr='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><h4 style="font-size:14px">דוח משמרות'+empTitle+' | '+$('repFrom').value+' – '+$('repTo').value+'</h4><button class="bs bg2" onclick="printReport()">🖨️ הדפס</button></div>';
   $('reportOutput').innerHTML=isMob?'<div>'+hdr+content+'</div>':'<div class="rep-card">'+hdr+'<div style="overflow-x:auto"><table class="rep-table"><thead><tr><th>תאריך</th><th>משמרת</th><th>שעות</th><th style="text-align:center">עובדים</th><th>שמות</th><th>סטטוס</th></tr></thead><tbody>'+content+'</tbody></table></div></div>';
+}
+
+function fmtHrs(mins){return (mins/60).toFixed(2);}
+function genPayrollReport(){
+  const from=new Date($('repFrom').value),to=new Date($('repTo').value);to.setDate(to.getDate()+1);
+  const filtEmp=$('repEmp').value;
+  const shifts=_shifts.filter(s=>{const d=new Date(s.date);return d>=from&&d<to;});
+  const emps=filtEmp?_emps.filter(e=>e.id===filtEmp):[..._emps].sort((a,b)=>RK.indexOf(a.role)-RK.indexOf(b.role)||a.name.localeCompare(b.name,'he'));
+  const isMob=window.innerWidth<=680;let content='';
+  let hasAny=false;
+  emps.forEach(emp=>{
+    // Same shift-gathering logic as the hours report: approved shifts OR
+    // any shift/manual entry that has actual clock data.
+    const myS=shifts.filter(s=>
+      Object.entries(_ap[s.id]||{}).some(([,ids])=>Array.isArray(ids)&&ids.includes(emp.id))||
+      getCkEntries(emp.id,s.id).length>0
+    );
+    const workDates=new Set();
+    let totalMins=0,regMins=0,ot125Mins=0,ot150Mins=0;
+    myS.forEach(s=>{
+      const actual=calcActualMins(emp.id,s.id);
+      if(actual<=0)return;
+      workDates.add(s.date);
+      totalMins+=actual;
+      const t=tierMinutes(actual);
+      regMins+=t.regular;ot125Mins+=t.ot125;ot150Mins+=t.ot150;
+    });
+    // Manual entries not linked to any shift (same pattern as hours report)
+    Object.entries(_ck).forEach(([key,val])=>{
+      if(key.startsWith(emp.id+'_manual_')){
+        const date=key.replace(emp.id+'_manual_','');
+        const d=new Date(date);
+        if(d>=from&&d<to&&!myS.find(s=>s.date===date)){
+          const entries=Array.isArray(val.entries)?val.entries:(val.in?[{in:val.in,out:val.out||null}]:[]);
+          let actual=0;entries.forEach(e2=>{if(e2.in&&e2.out)actual+=Math.round((e2.out-e2.in)/60000);});
+          if(actual<=0)return;
+          workDates.add(date);
+          totalMins+=actual;
+          const t=tierMinutes(actual);
+          regMins+=t.regular;ot125Mins+=t.ot125;ot150Mins+=t.ot150;
+        }
+      }
+    });
+    // Absence days within the report period, by type
+    const empAbs=_absences.filter(a=>a.employeeId===emp.id&&new Date(a.date)>=from&&new Date(a.date)<to);
+    const vacDays=empAbs.filter(a=>a.type==='vacation').reduce((s,a)=>s+a.days,0);
+    const sickDays=empAbs.filter(a=>a.type==='sick').reduce((s,a)=>s+a.days,0);
+    const otherDays=empAbs.filter(a=>a.type==='other').reduce((s,a)=>s+a.days,0);
+
+    if(totalMins<=0&&vacDays<=0&&sickDays<=0&&otherDays<=0)return;
+    hasAny=true;
+
+    const rate=emp.hourlyRate;
+    const hasRate=rate!=null&&rate>0;
+    const payReg=hasRate?(regMins/60*rate):null;
+    const pay125=hasRate?(ot125Mins/60*rate*1.25):null;
+    const pay150=hasRate?(ot150Mins/60*rate*1.5):null;
+    const payTotal=hasRate?(payReg+pay125+pay150):null;
+
+    const cells=[
+      emp.name,
+      workDates.size,
+      vacDays||'—',
+      sickDays||'—',
+      otherDays||'—',
+      fmtHrs(totalMins),
+      fmtHrs(regMins),
+      fmtHrs(ot125Mins),
+      fmtHrs(ot150Mins),
+      hasRate?('₪'+payTotal.toFixed(0)):'—'
+    ];
+    content+=isMob?
+      '<div class="rep-card"><div style="font-weight:700;color:var(--accent);margin-bottom:6px">'+emp.name+'</div>'+
+      '<div style="font-size:12px;display:grid;grid-template-columns:1fr 1fr;gap:4px 10px">'+
+      '<span>ימי עבודה: '+workDates.size+'</span><span>חופש: '+(vacDays||0)+'</span>'+
+      '<span>מחלה: '+(sickDays||0)+'</span><span>אחר: '+(otherDays||0)+'</span>'+
+      '<span>סה"כ שעות: '+fmtHrs(totalMins)+'</span><span>רגיל: '+fmtHrs(regMins)+'</span>'+
+      '<span>125%: '+fmtHrs(ot125Mins)+'</span><span>150%: '+fmtHrs(ot150Mins)+'</span>'+
+      '</div>'+(hasRate?'<div style="margin-top:6px;font-weight:800;color:var(--accent)">סה"כ לתשלום: ₪'+payTotal.toFixed(0)+'</div>':'')+
+      '</div>'
+      :'<tr><td style="font-weight:600">'+cells[0]+'</td><td style="text-align:center">'+cells[1]+'</td><td style="text-align:center">'+cells[2]+'</td><td style="text-align:center">'+cells[3]+'</td><td style="text-align:center">'+cells[4]+'</td><td style="text-align:center">'+cells[5]+'</td><td style="text-align:center">'+cells[6]+'</td><td style="text-align:center">'+cells[7]+'</td><td style="text-align:center">'+cells[8]+'</td><td style="text-align:center;font-weight:700;color:var(--accent)">'+cells[9]+'</td></tr>';
+  });
+  if(!hasAny){$('reportOutput').innerHTML='<p style="color:var(--text2);text-align:center;padding:20px">אין נתונים לתקופה זו</p>';return;}
+  const hdr2='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><h4 style="font-size:14px">💰 דוח משכורות | '+$('repFrom').value+' – '+$('repTo').value+'</h4><button class="bs bg2" onclick="printReport()">🖨️ הדפס</button></div>';
+  const note='<p style="font-size:11px;color:var(--text2);margin-top:8px">חישוב שעות נוספות: 8 שעות ראשונות במשמרת = 100%, השעתיים הבאות = 125%, מעבר לכך = 150%. מומלץ לוודא מול רואה חשבון שכר לפני שימוש לצורך תלושי שכר בפועל.</p>';
+  $('reportOutput').innerHTML=isMob?'<div>'+hdr2+content+note+'</div>':'<div class="rep-card">'+hdr2+'<div style="overflow-x:auto"><table class="rep-table"><thead><tr><th>עובד</th><th>ימי עבודה</th><th>חופש</th><th>מחלה</th><th>אחר</th><th>סה"כ שעות</th><th>רגיל</th><th>125%</th><th>150%</th><th>לתשלום</th></tr></thead><tbody>'+content+'</tbody></table></div>'+note+'</div>';
 }
 
 // QR
