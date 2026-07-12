@@ -51,7 +51,7 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
 
   <div class="note">עמוד זה בודק אוטומטית שהגיבוי היומי של המערכת רץ בהצלחה. אם משהו נראה לא תקין, אפשר לפנות אלינו ישירות.</div>
 
-  <a class="backlink" href="login.html">← חזרה למסך הכניסה</a>
+  <a class="backlink" href="login.html" id="backLink">← חזרה</a>
 </div>
 
 <script type="module">
@@ -64,6 +64,17 @@ const app=initializeApp(FC);
 initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider('6LdbFEotAAAAAEMnJrsryKE9WpytV8RAIZ2DnyjP'),isTokenAutoRefreshEnabled:true});
 const db=getFirestore(app);
 const $=id=>document.getElementById(id);
+
+// Smart "back" link: if we arrived from admin.html (or any page on this
+// site) via browser history, go back there. Otherwise (e.g. someone
+// opened this link directly), fall back to the regular login screen.
+$('backLink').addEventListener('click',(e)=>{
+  if(document.referrer && document.referrer.includes(location.host)){
+    e.preventDefault();
+    history.back();
+  }
+  // else: let the default href="login.html" navigation happen
+});
 
 function setBadge(kind,text){
   const badge=$('statusBadge'),dot=$('statusDot'),txt=$('statusText');
