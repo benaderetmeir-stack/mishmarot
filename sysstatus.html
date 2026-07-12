@@ -65,9 +65,6 @@ initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider('6LdbFEotAAAAAE
 const db=getFirestore(app);
 const $=id=>document.getElementById(id);
 
-// Smart "back" link: if we arrived from admin.html (or any page on this
-// site) via browser history, go back there. Otherwise (e.g. someone
-// opened this link directly), fall back to the regular login screen.
 // Smart "back" link: this page usually opens in a NEW TAB (from the admin
 // panel's "🟢 מצב מערכת" link), so browser history.back() has nothing to
 // go to within this tab. Instead: if we can tell we came from this site,
