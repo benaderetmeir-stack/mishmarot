@@ -160,10 +160,10 @@ const ADMIN_IDLE_TIMEOUT_MS=15*60*1000; // 15 minutes
 const ADMIN_LAST_ACTIVITY_KEY='mishmarot_admin_last_activity';
 let _idleTimer=null;
 
-function forceIdleLogout(){
+async function forceIdleLogout(){
   if(_idleTimer)clearTimeout(_idleTimer);
   localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
-  signOut(auth).catch(()=>{});
+  try{await signOut(auth);}catch(e){}
   alert('התנתקת אוטומטית עקב חוסר פעילות. יש להתחבר שוב.');
   window.location.href='login.html';
 }
@@ -400,10 +400,14 @@ document.addEventListener('click',async e=>{
   }
 });
 
-$('logoutBtn').addEventListener('click',()=>{
+$('logoutBtn').addEventListener('click',async()=>{
   if(_idleTimer)clearTimeout(_idleTimer);
   localStorage.removeItem(ADMIN_LAST_ACTIVITY_KEY);
-  signOut(auth).catch(()=>{});
+  // IMPORTANT: wait for signOut to actually finish before navigating away.
+  // On mobile especially, navigating immediately (fire-and-forget) could
+  // tear down the page mid-operation before the session was fully cleared
+  // from storage, leaving the old session still valid.
+  try{await signOut(auth);}catch(e){}
   window.location.href='login.html';
 });
 </script>
