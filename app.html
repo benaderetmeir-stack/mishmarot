@@ -697,9 +697,12 @@ function calcActualMins(eId,sId){
     const d=_ck[key]||{};
     let t=0;
     const entries=Array.isArray(d.entries)?d.entries:(d.in?[{in:d.in,out:d.out||null}]:[]);
-    entries.forEach(e=>{if(e.in&&e.out)t+=Math.round((e.out-e.in)/60000);});
+    // autoClosed entries are excluded: their "out" time is a guess (see
+    // autoCloseStaleClockins), not a real clock-out, so it must not
+    // silently count toward hours/pay until a manager confirms it.
+    entries.forEach(e=>{if(e.in&&e.out&&!e.autoClosed)t+=Math.round((e.out-e.in)/60000);});
     return t;
-  }let t=0;getCkEntries(eId,sId).forEach(e=>{if(e.in&&e.out)t+=Math.round((e.out-e.in)/60000);});return t;}
+  }let t=0;getCkEntries(eId,sId).forEach(e=>{if(e.in&&e.out&&!e.autoClosed)t+=Math.round((e.out-e.in)/60000);});return t;}
 function isCurrentlyIn(eId,sId){const e=getCkEntries(eId,sId);if(!e.length)return false;const l=e[e.length-1];return l.in&&!l.out;}
 
 // Overtime tiers per Israeli labor law convention, per shift (not summed
@@ -1582,6 +1585,7 @@ function genHoursReport(){
         }
       }
     });
+    myS.sort((a,b)=>a.date.localeCompare(b.date));
     if(!myS.length)return;let empTotal=0,hasAny=false,rows='';
     myS.forEach(s=>{
       const entries=getCkEntries(emp.id,s.id),actual=calcActualMins(emp.id,s.id);if(!entries.length)return;
@@ -1589,10 +1593,17 @@ function genHoursReport(){
       const openNow=isCurrentlyIn(emp.id,s.id);
       const isLong=actual>=600; // 10+ hours - worth a manager's attention
       const wasAutoClosed=entries.some(e2=>e2.autoClosed);
-      const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?fmtTime(e2.out):'<span style="color:var(--red);font-weight:700">בפנים ⚠️</span>')).join(', ');
-      let hoursCell=openNow?'<span style="color:var(--red);font-weight:700" title="העובד/ת לא סימן/ה יציאה ממשמרת זו">⚠️ לא נרשמה יציאה</span>'+(actual>0?' ('+fmtMins(actual)+')':''):fmtMins(actual);
+      const entryStr=entries.map(e2=>fmtTime(e2.in)+'–'+(e2.out?(e2.autoClosed?fmtTime(e2.out)+' (ננעל אוטומטית)':fmtTime(e2.out)):'<span style="color:var(--red);font-weight:700">בפנים ⚠️</span>')).join(', ');
+      let hoursCell;
+      if(openNow){
+        hoursCell='<span style="color:var(--red);font-weight:700" title="העובד/ת לא סימן/ה יציאה ממשמרת זו">⚠️ לא נרשמה יציאה</span>'+(actual>0?' ('+fmtMins(actual)+')':'');
+      }else if(wasAutoClosed&&actual===0){
+        hoursCell='<span style="color:var(--orange);font-weight:700" title="העובד/ת לא סימן/ה יציאה, והמשמרת ננעלה אוטומטית אחרי 16 שעות. השעות לא נספרות בדוח/בשכר עד שמתקנים ידנית.">🔒 עובד/ת לא לחץ/ה יציאה - נסגר אוטומטית, לא נספר</span>';
+      }else{
+        hoursCell=fmtMins(actual);
+        if(wasAutoClosed)hoursCell+=' <span style="color:var(--orange);font-size:10px;font-weight:700" title="בחלק מהמשמרת העובד/ת לא לחץ/ה יציאה, וזה ננעל אוטומטית ולא נספר - המספר כאן הוא רק החלק שכן אושר">🔒 חלק לא נספר - לא נלחצה יציאה</span>';
+      }
       if(isLong)hoursCell='<span title="משמרת של 10 שעות ומעלה - כדאי לבדוק" style="color:var(--red)">⭐</span> '+hoursCell;
-      if(wasAutoClosed)hoursCell+=' <span style="color:var(--orange);font-size:10px;font-weight:700" title="המשמרת נסגרה אוטומטית אחרי 16 שעות ללא יציאה - השעות כאן הן הערכה, כדאי לבדוק ולתקן">🔒 נסגר אוטומטית</span>';
       rows+=isMob?'<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>'+fmtDate(s.date)+' '+(s.name||'')+'<br><span style="font-size:11px;color:var(--text2)">'+entryStr+'</span></span><span style="color:var(--green);font-weight:700">'+hoursCell+'</span></div>':'<tr><td>'+fmtDate(s.date)+'</td><td>'+(s.name||'')+'</td><td style="font-size:11px;color:var(--text2)">'+entryStr+'</td><td style="text-align:center;color:var(--green);font-weight:700">'+hoursCell+'</td></tr>';
     });
     if(!hasAny)return;
