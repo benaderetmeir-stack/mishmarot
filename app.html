@@ -922,7 +922,8 @@ async function addEmployee(){
   await fbSet('employees',id,{name,role,senior,phone,tz,birth,code,archived:false,active:true});
   ['newName','newPhone','newTZ','newBirth'].forEach(i=>$(i).value='');
   toast('✅ עובד נוסף! קוד: '+code);
-  showWaModal([{label:name,phone:phone,msg:'שלום '+name+'!\nנרשמת למערכת.\nקוד הכניסה: '+code}]);
+  const _siteLink=window.location.href.replace('app.html','login.html').split('?')[0];
+  showWaModal([{label:name,phone:phone,msg:'שלום '+name+'!\nנרשמת למערכת.\n\nלכניסה, היכנס/י לקישור:\n'+_siteLink+'\nולחץ/י על "כניסה עובד".\n\nקוד עסק: '+(_businessData.businessCode||'—')+'\nקוד אישי: '+code}]);
 }
 function renderEmployees(){
   const q=$('empSearch').value.toLowerCase();
