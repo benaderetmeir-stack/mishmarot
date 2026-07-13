@@ -26,7 +26,7 @@ const BACKUP_BUCKET = "gs://mishmarot-2506e-backup";
 // real, verifiable identity that Firestore security rules can check -
 // instead of an anonymous session that has no link to any business.
 // ============================================================
-exports.verifyEmployeeLogin = onCall(async (request) => {
+exports.verifyEmployeeLogin = onCall({enforceAppCheck: true}, async (request) => {
   const businessCode = (request.data && request.data.businessCode || "").trim();
   const personalCode = (request.data && request.data.personalCode || "").trim();
 
@@ -88,6 +88,39 @@ exports.verifyEmployeeLogin = onCall(async (request) => {
 });
 
 // ============================================================
+// deleteBusinessAuth
+// ------------------------------------------------------------
+// Deletes a business's Firebase Authentication account (email+password
+// login). This can ONLY be done from a trusted server context (Admin SDK)
+// - the browser SDK can only ever delete the currently signed-in user's
+// own account, never someone else's. Without this, permanently deleting
+// a business from the admin panel would remove its data but leave the
+// email address "stuck" as taken forever.
+//
+// Restricted to the super-admin only.
+// ============================================================
+const SUPERADMIN_UID='C4tCzUpOTge4goOkf9RO1YqEKqL2';
+
+exports.deleteBusinessAuth=onCall({enforceAppCheck:true},async(request)=>{
+  if(!request.auth||request.auth.uid!==SUPERADMIN_UID){
+    throw new HttpsError('permission-denied','רק סופר-אדמין יכול לבצע פעולה זו');
+  }
+  const businessId=request.data&&request.data.businessId;
+  if(!businessId){
+    throw new HttpsError('invalid-argument','נדרש מזהה עסק');
+  }
+  try{
+    await admin.auth().deleteUser(businessId);
+    return{success:true};
+  }catch(err){
+    if(err.code==='auth/user-not-found'){
+      return{success:true,note:'החשבון כבר לא היה קיים'};
+    }
+    throw new HttpsError('internal',err.message);
+  }
+});
+
+// ============================================================
 // scheduledFirestoreBackup
 // ------------------------------------------------------------
 // Runs automatically every day at 03:00 Israel time. Exports the entire
@@ -110,12 +143,31 @@ exports.scheduledFirestoreBackup = onSchedule(
       const databaseName =
         firestoreAdminClient.databasePath(PROJECT_ID, "(default)");
 
-      await firestoreAdminClient.exportDocuments({
-        name: databaseName,
-        outputUriPrefix: `${BACKUP_BUCKET}/auto-backup-${today}`,
-        collectionIds: [], // empty = export all collections
-      });
+      try {
+        await firestoreAdminClient.exportDocuments({
+          name: databaseName,
+          outputUriPrefix: `${BACKUP_BUCKET}/auto-backup-${today}`,
+          collectionIds: [], // empty = export all collections
+        });
 
-      console.log(`Scheduled Firestore backup started for ${today}`);
+        console.log(`Scheduled Firestore backup started for ${today}`);
+
+        // Write a small, non-sensitive public status marker so the status
+        // page (status.html) can show "backup ok" without exposing any
+        // real data.
+        await db.collection("system").doc("status").set({
+          lastBackupDate: today,
+          lastBackupAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastBackupOk: true,
+        }, {merge: true});
+      } catch (err) {
+        console.error("Scheduled backup failed:", err);
+        await db.collection("system").doc("status").set({
+          lastBackupOk: false,
+          lastBackupError: String(err && err.message || err),
+          lastBackupErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+        throw err;
+      }
     },
 );
