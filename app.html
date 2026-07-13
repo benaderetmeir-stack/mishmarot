@@ -1083,6 +1083,9 @@ document.addEventListener('change',async function(e){
     const existing=_ck[eid+'_'+sid]||{};
     let entries=Array.isArray(existing.entries)?[...existing.entries]:(existing.in?[{in:existing.in,out:existing.out||null}]:[]);
     if(!entries[idx])return;entries[parseInt(idx)][field]=toTs2(e.target.value);
+    // A manual edit by the manager IS the manual review the autoClosed flag
+    // was waiting for - clear it so the corrected hours count again.
+    delete entries[parseInt(idx)].autoClosed;
     // Same overnight assumption as above: if this edit leaves "out" earlier
     // than "in" on the same calendar date, treat it as landing the next day.
     const _en=entries[parseInt(idx)];
