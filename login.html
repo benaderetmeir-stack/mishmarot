@@ -79,6 +79,7 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
       <div class="register-title">✨ יצירת חשבון חדש</div>
       <div class="fg"><label>שם העסק</label><input type="text" id="regBusiness" placeholder="למשל: מסעדת הים"/></div>
       <div class="fg"><label>אימייל</label><input type="email" id="regEmail" placeholder="your@email.com"/></div>
+      <div class="fg"><label>טלפון</label><input type="tel" id="regPhone" placeholder="050-1234567"/></div>
       <div class="fg"><label>סיסמה</label><input type="password" id="regPass" placeholder="לפחות 6 תווים"/></div>
       <div class="fg"><label>אימות סיסמה</label><input type="password" id="regPass2" placeholder="הזן שוב"/></div>
       <div class="err" id="registerErr"></div>
@@ -200,10 +201,13 @@ $('loginBtn').addEventListener('click',async()=>{
 $('registerBtn').addEventListener('click',async()=>{
   const business=$('regBusiness').value.trim();
   const email=$('regEmail').value.trim();
+  const phone=$('regPhone').value.trim();
   const pass=$('regPass').value.trim();
   const pass2=$('regPass2').value.trim();
   if(!business){$('registerErr').textContent='נא להזין שם עסק';return;}
   if(!email){$('registerErr').textContent='נא להזין אימייל';return;}
+  const phoneDigits=phone.replace(/[^0-9]/g,'');
+  if(!phone||phoneDigits.length<9){$('registerErr').textContent='נא להזין מספר טלפון תקין';return;}
   if(pass.length<6){$('registerErr').textContent='סיסמה חייבת להכיל לפחות 6 תווים';return;}
   if(pass!==pass2){$('registerErr').textContent='הסיסמאות לא תואמות';return;}
   showLoading(true);
@@ -224,7 +228,7 @@ $('registerBtn').addEventListener('click',async()=>{
     }
     const cred=await createUserWithEmailAndPassword(auth,email,pass);
     const uid=cred.user.uid;
-    const businessData={name:business,email,uid,businessCode:bCode,createdAt:Date.now(),createdDate:new Date().toISOString().slice(0,10),active:true};
+    const businessData={name:business,email,phone,uid,businessCode:bCode,createdAt:Date.now(),createdDate:new Date().toISOString().slice(0,10),active:true};
     await setDoc(doc(db,'businesses',uid),businessData);
     localStorage.setItem('mishmarot_uid',uid);
     localStorage.setItem('mishmarot_business',JSON.stringify(businessData));
