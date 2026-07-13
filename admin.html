@@ -108,12 +108,14 @@ import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-ap
 import{initializeAppCheck,ReCaptchaEnterpriseProvider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
 import{getAuth,sendPasswordResetEmail,signInWithEmailAndPassword,onAuthStateChanged,signOut}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getFirestore,collection,doc,updateDoc,onSnapshot,setDoc,deleteDoc,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import{getFunctions,httpsCallable}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
 const FC={apiKey:"AIzaSyAVZYCXAfE7vQyIpUCTtbWGr6SY_iPZ2ds",authDomain:"mishmarot-2506e.firebaseapp.com",projectId:"mishmarot-2506e",storageBucket:"mishmarot-2506e.firebasestorage.app",messagingSenderId:"386147385377",appId:"1:386147385377:web:6d1c876b94077888e16360"};
 const app=initializeApp(FC);
 initializeAppCheck(app,{provider:new ReCaptchaEnterpriseProvider('6LdbFEotAAAAAEMnJrsryKE9WpytV8RAIZ2DnyjP'),isTokenAutoRefreshEnabled:true});
 const auth=getAuth(app);
 const db=getFirestore(app);
+const functions=getFunctions(app);
 const $=id=>document.getElementById(id);
 
 // Admin auth - real Firebase Authentication (the super-admin account you created).
@@ -382,6 +384,16 @@ document.addEventListener('click',async e=>{
         for(const col of cols){
           const snap=await getDocs(collection(db,'businesses/'+id+'/'+col));
           for(const d of snap.docs) await deleteDoc(d.ref);
+        }
+        // Also delete the actual login account (email+password) - without
+        // this, the email stays "taken" forever even though the business
+        // data is gone, and nobody could ever re-register with it.
+        try{
+          const deleteAuth=httpsCallable(functions,'deleteBusinessAuth');
+          await deleteAuth({businessId:id});
+        }catch(authErr){
+          console.error('Failed to delete auth account:',authErr);
+          alert('הנתונים נמחקו, אך הייתה שגיאה במחיקת חשבון ההתחברות. ייתכן שהאימייל עדיין יהיה תפוס.');
         }
         // Delete from Authentication using Firebase REST API
         try{
