@@ -108,7 +108,7 @@ body{font-family:"Heebo",sans-serif;background:linear-gradient(135deg,#f5f0e8,#e
 <script type="module">
 import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import{initializeAppCheck,ReCaptchaEnterpriseProvider}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js";
-import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail,signInAnonymously,signInWithCustomToken}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import{getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,sendPasswordResetEmail,signInAnonymously,signInWithCustomToken,onAuthStateChanged}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import{getFirestore,doc,setDoc,getDoc,collection,query,where,getDocs}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import{getFunctions,httpsCallable}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
@@ -125,7 +125,19 @@ const $=id=>document.getElementById(id);
 // the employee flow (which never uses email/password login).
 // If the user is a manager, signInWithEmailAndPassword below will replace this
 // anonymous session with their real one automatically.
-const _authReady = signInAnonymously(auth).catch(()=>{});
+//
+// IMPORTANT: we check first whether a session (anonymous or real) is
+// already persisted for this browser/device, and only create a brand new
+// anonymous account if there truly is none. Without this check, every
+// single page load minted a fresh throwaway account, cluttering the
+// Firebase Authentication user list with thousands of unused entries.
+const _authReady = new Promise((resolve)=>{
+  const unsub=onAuthStateChanged(auth,(user)=>{
+    unsub();
+    if(user){resolve(user);return;}
+    signInAnonymously(auth).then(resolve).catch(()=>resolve(null));
+  });
+});
 
 // TABS
 $('tabManager').addEventListener('click',()=>{
