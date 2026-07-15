@@ -970,7 +970,8 @@ function openEmpProfile(id){
   $('absDate').value='';$('absDays').value='';$('absOtherLabel').value='';$('absType').value='vacation';
   renderAbsenceList(emp.id);
   const spontSel=$('pSpontShift');
-  spontSel.innerHTML='<option value="">-- ללא --</option>'+_shifts.sort((a,b)=>a.date.localeCompare(b.date)).map(s=>'<option value="'+s.id+'">'+fmtDate(s.date)+' '+(s.name||'')+' '+s.start+'–'+s.end+'</option>').join('');
+  const _todayStr=new Date().toISOString().slice(0,10);
+  spontSel.innerHTML='<option value="">-- ללא --</option>'+_shifts.filter(s=>s.date>=_todayStr).sort((a,b)=>a.date.localeCompare(b.date)).map(s=>'<option value="'+s.id+'">'+fmtDate(s.date)+' '+(s.name||'')+' '+s.start+'–'+s.end+'</option>').join('');
   // Filter shifts for current month only
   const now=new Date();
   const monthStart=new Date(now.getFullYear(),now.getMonth(),1).toISOString().slice(0,10);
@@ -1352,7 +1353,8 @@ function sendSMS(emp,shift,role){if(!emp||!shift)return;showWaModal([{label:emp.
 // SPONT
 function openSpont(){
   $('spontEmp').innerHTML=activeEmps().sort((a,b)=>a.name.localeCompare(b.name,'he')).map(e=>'<option value="'+e.id+'">'+e.name+' – '+(ROLES[e.role]||e.role)+'</option>').join('');
-  $('spontShift').innerHTML='<option value="">-- ללא --</option>'+_shifts.sort((a,b)=>a.date.localeCompare(b.date)).map(s=>'<option value="'+s.id+'">'+fmtDate(s.date)+' '+(s.name||'')+' '+s.start+'–'+s.end+'</option>').join('');
+  const _todayStr2=new Date().toISOString().slice(0,10);
+  $('spontShift').innerHTML='<option value="">-- ללא --</option>'+_shifts.filter(s=>s.date>=_todayStr2).sort((a,b)=>a.date.localeCompare(b.date)).map(s=>'<option value="'+s.id+'">'+fmtDate(s.date)+' '+(s.name||'')+' '+s.start+'–'+s.end+'</option>').join('');
   $('spontDate').value='';$('spontDate').min=new Date().toISOString().slice(0,10);
   openModal('spontModal');
 }
